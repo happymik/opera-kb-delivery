@@ -11,42 +11,50 @@ const EXAMPLE_QUESTIONS = [
   'What are the differences between Desktop and Mobile campaigns?',
 ];
 
+function isGenericSource(src: string): boolean {
+  const GENERIC = [
+    'search_knowledge_base tool',
+    'opera knowledge base documents',
+    'opera knowledge base',
+    'file_search.query()',
+  ];
+  const lower = src.toLowerCase();
+  if (GENERIC.includes(lower)) return true;
+  if (lower.startsWith('filesearchstores/')) return true;
+  if (lower === '.pdf' || lower === 'pdf') return true;
+  return false;
+}
+
 function extractSources(text: string): { cleanText: string; sources: string[] } {
   const sources: string[] = [];
-  const GENERIC_SOURCES = [
-    'Search_Knowledge_Base Tool',
-    'Opera knowledge base documents',
-    'Opera Knowledge Base',
-    'fileSearchStores/',
-    '.pdf',
-  ];
 
-  // Match **Sources:** or Sources: section at the end
-  const sourcesRegex = /\n*\*{0,2}Sources?\*{0,2}:\s*\n?([\s\S]*?)$/i;
+  // Match **Sources:** or Sources: section at the end (with optional newline or space after colon)
+  const sourcesRegex = /\n*\*{0,2}Sources?\*{0,2}:\s*([\s\S]*?)$/i;
   const match = text.match(sourcesRegex);
 
   if (match) {
     const sourcesBlock = match[1].trim();
     const cleanText = text.slice(0, match.index).trimEnd();
 
-    // Try bullet list first (- name or * name)
-    const bulletRegex = /[-*]\s+\*?([^*\n]+)\*?\s*/g;
+    // Try bullet list first (- name or * name, at start of line)
+    const bulletRegex = /^[-*]\s+\*?([^*\n]+)\*?\s*/gm;
     let lineMatch;
     let hasBullets = false;
     while ((lineMatch = bulletRegex.exec(sourcesBlock)) !== null) {
       hasBullets = true;
       const src = lineMatch[1].trim();
-      if (src && !GENERIC_SOURCES.some(g => src === g || src.startsWith(g))) {
+      if (src && !isGenericSource(src)) {
         sources.push(src);
       }
     }
 
-    // If no bullets, try comma-separated on a single line
+    // If no bullets found, treat the whole block as plain text sources
     if (!hasBullets && sourcesBlock.length > 0) {
-      const parts = sourcesBlock.split(/,\s*/);
+      // Split by comma or newline
+      const parts = sourcesBlock.split(/[,\n]+/);
       for (const part of parts) {
         const src = part.trim().replace(/^\*+|\*+$/g, '');
-        if (src && !GENERIC_SOURCES.some(g => src === g || src.startsWith(g))) {
+        if (src && !isGenericSource(src)) {
           sources.push(src);
         }
       }
@@ -61,7 +69,7 @@ function extractSources(text: string): { cleanText: string; sources: string[] } 
   if (inlineMatch) {
     const src = inlineMatch[1].trim();
     const cleanText = text.slice(0, inlineMatch.index).trimEnd();
-    if (src && !GENERIC_SOURCES.some(g => src === g || src.startsWith(g))) {
+    if (src && !isGenericSource(src)) {
       sources.push(src);
     }
     return { cleanText, sources };

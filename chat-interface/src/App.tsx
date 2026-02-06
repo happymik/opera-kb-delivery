@@ -13,33 +13,55 @@ const EXAMPLE_QUESTIONS = [
 
 function extractSources(text: string): { cleanText: string; sources: string[] } {
   const sources: string[] = [];
+  const GENERIC_SOURCES = [
+    'Search_Knowledge_Base Tool',
+    'Opera knowledge base documents',
+    'Opera Knowledge Base',
+    'fileSearchStores/',
+    '.pdf',
+  ];
 
   // Match **Sources:** or Sources: section at the end
-  const sourcesRegex = /\n*\*{0,2}Sources?\*{0,2}:\s*\n([\s\S]*?)$/i;
+  const sourcesRegex = /\n*\*{0,2}Sources?\*{0,2}:\s*\n?([\s\S]*?)$/i;
   const match = text.match(sourcesRegex);
 
   if (match) {
-    const sourcesBlock = match[1];
+    const sourcesBlock = match[1].trim();
     const cleanText = text.slice(0, match.index).trimEnd();
-    // Extract individual source lines (- *name* or - name or * name)
-    const lineRegex = /[-*]\s*\*?([^*\n]+)\*?\s*/g;
+
+    // Try bullet list first (- name or * name)
+    const bulletRegex = /[-*]\s+\*?([^*\n]+)\*?\s*/g;
     let lineMatch;
-    while ((lineMatch = lineRegex.exec(sourcesBlock)) !== null) {
+    let hasBullets = false;
+    while ((lineMatch = bulletRegex.exec(sourcesBlock)) !== null) {
+      hasBullets = true;
       const src = lineMatch[1].trim();
-      if (src && src !== 'Search_Knowledge_Base Tool') {
+      if (src && !GENERIC_SOURCES.some(g => src === g || src.startsWith(g))) {
         sources.push(src);
       }
     }
+
+    // If no bullets, try comma-separated on a single line
+    if (!hasBullets && sourcesBlock.length > 0) {
+      const parts = sourcesBlock.split(/,\s*/);
+      for (const part of parts) {
+        const src = part.trim().replace(/^\*+|\*+$/g, '');
+        if (src && !GENERIC_SOURCES.some(g => src === g || src.startsWith(g))) {
+          sources.push(src);
+        }
+      }
+    }
+
     return { cleanText, sources };
   }
 
-  // Match inline "Source: X Tool." or "Source: X." at the end
+  // Match inline "Source: X." at the end
   const inlineSourceRegex = /\n*Source:\s*(.+?)\.?\s*$/i;
   const inlineMatch = text.match(inlineSourceRegex);
   if (inlineMatch) {
     const src = inlineMatch[1].trim();
     const cleanText = text.slice(0, inlineMatch.index).trimEnd();
-    if (src && src !== 'Search_Knowledge_Base Tool' && src !== 'Opera knowledge base documents') {
+    if (src && !GENERIC_SOURCES.some(g => src === g || src.startsWith(g))) {
       sources.push(src);
     }
     return { cleanText, sources };

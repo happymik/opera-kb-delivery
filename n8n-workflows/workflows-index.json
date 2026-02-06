@@ -1,0 +1,96 @@
+{
+  "exported_at": "2026-02-06",
+  "workflows": [
+    {
+      "id": "yf3WMRhHrLJafEVq",
+      "name": "Opera KB - Single File Upload (Webhook)",
+      "filename": "opera-kb-single-file-upload-webhook.json",
+      "source": "n8n-api",
+      "active": false
+    },
+    {
+      "id": "Th2kRUj4sbvZQ1AN",
+      "name": "Opera KB - Pre-Ingestion Intelligence",
+      "filename": "opera-kb-pre-ingestion-intelligence.json",
+      "source": "n8n-api",
+      "active": false
+    },
+    {
+      "id": "9790OUR8DqwrQeTF",
+      "name": "Opera KB - Simplified Ingestion",
+      "filename": "opera-kb-simplified-ingestion.json",
+      "source": "n8n-api",
+      "active": false
+    },
+    {
+      "id": "e1jjhajstXTzdkVH",
+      "name": "Opera KB - QA Generator",
+      "filename": "opera-kb-qa-generator.json",
+      "source": "n8n-api",
+      "active": false
+    },
+    {
+      "id": "Cozzfv9b3mRL1M6V",
+      "name": "Opera KB - QA Executor",
+      "filename": "opera-kb-qa-executor.json",
+      "source": "n8n-api",
+      "active": false
+    },
+    {
+      "id": "SxU0FLwFJ28dR4Rg",
+      "name": "Gemini Knowledge Base - Cleanup",
+      "filename": "gemini-knowledge-base-cleanup.json",
+      "source": "n8n-api",
+      "active": false
+    },
+    {
+      "id": "t8lYDBY6ul6Q2aPr",
+      "name": "Opera KB Agent (Webhook + Chat)",
+      "filename": "opera-kb-agent-webhook-chat.json",
+      "source": "n8n-api",
+      "active": false
+    },
+    {
+      "id": "KbLDEmT9lEHS0whb",
+      "name": "Opera KB Agent (Webhook + Chat)",
+      "filename": "opera-kb-agent-webhook-chat-KbLDEmT9lEHS0whb.json",
+      "source": "n8n-api",
+      "active": true
+    },
+    {
+      "id": "5mqRrJhP1VgicOkN",
+      "name": "Opera Knowledge Base - Ingestion Pipeline v3 (PROPERLY FIXED v2)",
+      "filename": "opera-knowledge-base-ingestion-pipeline-v3-properly-fixed-v2.json",
+      "source": "n8n-api",
+      "active": false
+    },
+    {
+      "id": null,
+      "name": "Pre Ingestion Intelligence",
+      "filename": "local-drafts/pre-ingestion-intelligence.json",
+      "source": "local-file",
+      "active": null
+    },
+    {
+      "id": null,
+      "name": "Simplified Ingestion",
+      "filename": "local-drafts/simplified-ingestion.json",
+      "source": "local-file",
+      "active": null
+    },
+    {
+      "id": null,
+      "name": "Qa Generator",
+      "filename": "local-drafts/qa-generator.json",
+      "source": "local-file",
+      "active": null
+    },
+    {
+      "id": null,
+      "name": "Qa Executor",
+      "filename": "local-drafts/qa-executor.json",
+      "source": "local-file",
+      "active": null
+    }
+  ]
+}

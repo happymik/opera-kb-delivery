@@ -1,0 +1,993 @@
+{
+  "updatedAt": "2026-02-05T09:40:33.744Z",
+  "createdAt": "2026-02-05T09:40:33.744Z",
+  "id": "yf3WMRhHrLJafEVq",
+  "name": "Opera KB - Single File Upload (Webhook)",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kb-upload",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        304
+      ],
+      "webhookId": "kb-upload-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "combinator": "and"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.driveFileId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.fileName }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.metadata }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-validate-request",
+      "name": "Validate Request",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        464,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reshape webhook payload to match Drive scan format\nconst items = $input.all();\nfor (const item of items) {\n  const body = item.json.body || item.json;\n\n  // Reshape to match Drive scan format\n  item.json = {\n    id: body.driveFileId,\n    name: body.fileName,\n    mimeType: body.mimeType || 'application/octet-stream',\n    path: body.filePath || body.fileName,\n    fileType: body.fileType || 'unknown',\n    modifiedTime: body.modifiedTime || new Date().toISOString(),\n    // Frontend-provided metadata OVERRIDES path-based detection\n    userMetadata: body.metadata || {},\n    isWebhookUpload: true  // Flag to use user-provided metadata\n  };\n}\nreturn items;"
+      },
+      "id": "node-prepare-single-file",
+      "name": "Prepare Single File",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "node-get-store-config-webhook",
+      "name": "Get Store Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        912,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.mimeType }}",
+                    "operation": "equals",
+                    "value2": "application/vnd.google-apps.document"
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.mimeType }}",
+                    "operation": "equals",
+                    "value2": "application/vnd.google-apps.spreadsheet"
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "image/",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-route-by-type-webhook",
+      "name": "Route by File Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1120,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.id }}/export?mimeType=text/markdown",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "node-export-google-doc-webhook",
+      "name": "Export Google Doc",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        64
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "pKFi763immloVgDR",
+          "name": "Google Drive Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.id }}/export?mimeType=application/pdf",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "node-export-google-sheet-webhook",
+      "name": "Export Google Sheet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        208
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "pKFi763immloVgDR",
+          "name": "Google Drive Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "id": "node-download-binary-webhook",
+      "name": "Download Binary File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1344,
+        352
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "pKFi763immloVgDR",
+          "name": "Google Drive Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "mergeByPosition"
+      },
+      "id": "node-merge-downloads-webhook",
+      "name": "Merge Downloads",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1568,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate SHA256 hash of binary content\nconst crypto = require('crypto');\nconst items = $input.all();\n\nfor (const item of items) {\n  try {\n    const binaryData = await this.helpers.getBinaryDataBuffer(item, 'data');\n    item.json.hash = crypto.createHash('sha256').update(binaryData).digest('hex');\n    item.json.fileSizeBytes = binaryData.length;\n  } catch (error) {\n    item.json.hash = 'ERROR_GENERATING_HASH';\n    item.json.hashError = error.message;\n  }\n}\n\nreturn items;"
+      },
+      "id": "node-generate-hash-webhook",
+      "name": "Generate Hash",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getRow",
+        "dataTableId": "YOUR_RECORD_MANAGER_TABLE_ID"
+      },
+      "id": "node-search-record-mgr-webhook",
+      "name": "Search Record Manager",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2000,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Search Record Manager').item.json.id }}",
+              "operation": "isEmpty"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-new-doc-webhook",
+      "name": "New Doc?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2224,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getRow",
+        "dataTableId": "YOUR_RECORD_MANAGER_TABLE_ID"
+      },
+      "id": "node-check-identical-webhook",
+      "name": "Check Identical Content",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2448,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.id }}",
+              "operation": "isEmpty"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-identical-exists-webhook",
+      "name": "Identical Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2672,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Generate Hash').item.json.hash }}",
+              "operation": "notEquals",
+              "value2": "={{ $('Search Record Manager').item.json.hash }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-has-changed-webhook",
+      "name": "Has It Changed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2448,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/{{ $('Search Record Manager').item.json.geminiDocId }}?force=true",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "node-delete-old-doc-webhook",
+      "name": "Delete Old Gemini Doc",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2672,
+        400
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "aE4TTwJr4i8GFsno",
+          "name": "Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "deleteRow",
+        "dataTableId": "YOUR_RECORD_MANAGER_TABLE_ID"
+      },
+      "id": "node-delete-old-record-webhook",
+      "name": "Delete Old Record",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2880,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Use frontend-provided metadata (webhook) or auto-detect from path\nconst items = $input.all();\n\nfor (const item of items) {\n  // Webhook upload: use user-provided metadata\n  if (item.json.isWebhookUpload && item.json.userMetadata) {\n    item.json.metadata = {\n      market: item.json.userMetadata.market || 'all',\n      product: item.json.userMetadata.product || 'general',\n      category: item.json.userMetadata.category || 'document',\n      status: item.json.userMetadata.status || 'active'\n    };\n  } else {\n    // Fallback: auto-detect from path (shouldn't happen in webhook flow)\n    item.json.metadata = {\n      market: 'all',\n      product: 'general',\n      category: 'document',\n      status: 'active'\n    };\n  }\n}\n\nreturn items;"
+      },
+      "id": "node-path-metadata-webhook",
+      "name": "Determine Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3104,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build upload metadata for Gemini File Search API\nconst items = $input.all();\n\nfor (const item of items) {\n  const meta = item.json.metadata || {};\n  const fileName = item.json.name || 'Untitled';\n  const filePath = item.json.path || '';\n  const driveFileId = item.json.id || '';\n  \n  // Create display name with market/product prefix\n  let displayName = fileName;\n  if (meta.market && meta.market !== 'all') {\n    displayName = `[${meta.market.toUpperCase()}] ${displayName}`;\n  }\n  if (meta.product && meta.product !== 'general') {\n    displayName = `${displayName} (${meta.product})`;\n  }\n\n  item.json.uploadMetadata = {\n    display_name: displayName,\n    custom_metadata: [\n      { key: \"market\", string_value: meta.market || 'all' },\n      { key: \"product\", string_value: meta.product || 'general' },\n      { key: \"category\", string_value: meta.category || 'document' },\n      { key: \"status\", string_value: meta.status || 'active' },\n      { key: \"source_path\", string_value: filePath },\n      { key: \"drive_file_id\", string_value: driveFileId },\n      { key: \"original_filename\", string_value: fileName }\n    ],\n    chunking_config: {\n      whitespace_chunk_config: {\n        max_tokens_per_chunk: 500,\n        max_overlap_tokens: 100\n      }\n    }\n  };\n}\n\nreturn items;"
+      },
+      "id": "node-build-upload-metadata-webhook",
+      "name": "Build Upload Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3328,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/upload/v1beta/{{ $('Get Store Config').first().json.storeName }}/documents:upload?uploadType=resumable",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Goog-Upload-Protocol",
+              "value": "resumable"
+            },
+            {
+              "name": "X-Goog-Upload-Command",
+              "value": "start"
+            },
+            {
+              "name": "X-Goog-Upload-Header-Content-Type",
+              "value": "={{ $json.mimeType === 'application/vnd.google-apps.document' ? 'text/markdown' : ($json.mimeType === 'application/vnd.google-apps.spreadsheet' ? 'application/pdf' : $json.mimeType) }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "application/json",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "node-initiate-upload-webhook",
+      "name": "Initiate Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3552,
+        112
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "aE4TTwJr4i8GFsno",
+          "name": "Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reload binary data (lost after Code/IF nodes)\nconst items = $input.all();\n\nfor (const item of items) {\n  // Try to get binary from the appropriate download node\n  try {\n    const exportGoogleDoc = $('Export Google Doc').all();\n    if (exportGoogleDoc.length > 0 && exportGoogleDoc[0].binary) {\n      item.binary = exportGoogleDoc[0].binary;\n      continue;\n    }\n  } catch {}\n\n  try {\n    const exportGoogleSheet = $('Export Google Sheet').all();\n    if (exportGoogleSheet.length > 0 && exportGoogleSheet[0].binary) {\n      item.binary = exportGoogleSheet[0].binary;\n      continue;\n    }\n  } catch {}\n\n  try {\n    const downloadBinary = $('Download Binary File').all();\n    if (downloadBinary.length > 0 && downloadBinary[0].binary) {\n      item.binary = downloadBinary[0].binary;\n      continue;\n    }\n  } catch {}\n\n  // If we get here, binary data is missing\n  item.json.error = 'Binary data not found';\n}\n\nreturn items;"
+      },
+      "id": "node-reload-binary-webhook",
+      "name": "Reload Binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3760,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Initiate Upload').item.json.headers['x-goog-upload-url'] }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Goog-Upload-Offset",
+              "value": "0"
+            },
+            {
+              "name": "X-Goog-Upload-Command",
+              "value": "upload, finalize"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "binary",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "node-upload-binary-webhook",
+      "name": "Upload Binary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3984,
+        112
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "aE4TTwJr4i8GFsno",
+          "name": "Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://generativelanguage.googleapis.com/v1beta/{{ $json.document.name }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "node-wait-processing-webhook",
+      "name": "Wait for Processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4208,
+        112
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "aE4TTwJr4i8GFsno",
+          "name": "Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addRow",
+        "dataTableId": "YOUR_RECORD_MANAGER_TABLE_ID"
+      },
+      "id": "node-add-record-webhook",
+      "name": "Add Record",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4432,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"geminiDocId\": $('Upload Binary').item.json.document.name, \"documentName\": $('Build Upload Metadata').item.json.uploadMetadata.display_name, \"hash\": $('Generate Hash').item.json.hash } }}",
+        "options": {}
+      },
+      "id": "node-respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        4640,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": \"Invalid request. Required: driveFileId, fileName, metadata\" } }}",
+        "options": {}
+      },
+      "id": "node-respond-error-validation",
+      "name": "Respond Error (Validation)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        688,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "updateRow",
+        "dataTableId": "YOUR_RECORD_MANAGER_TABLE_ID"
+      },
+      "id": "node-update-sync-time-webhook",
+      "name": "Update Sync Time",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2864,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"File already exists and is up to date\", \"geminiDocId\": $('Search Record Manager').item.json.geminiDocId } }}",
+        "options": {}
+      },
+      "id": "node-respond-already-exists",
+      "name": "Respond Already Exists",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        3104,
+        -64
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Request": {
+      "main": [
+        [
+          {
+            "node": "Prepare Single File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error (Validation)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Single File": {
+      "main": [
+        [
+          {
+            "node": "Get Store Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Store Config": {
+      "main": [
+        [
+          {
+            "node": "Route by File Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by File Type": {
+      "main": [
+        [
+          {
+            "node": "Export Google Doc",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Export Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Binary File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export Google Doc": {
+      "main": [
+        [
+          {
+            "node": "Merge Downloads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Merge Downloads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Binary File": {
+      "main": [
+        [
+          {
+            "node": "Merge Downloads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Downloads": {
+      "main": [
+        [
+          {
+            "node": "Generate Hash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Hash": {
+      "main": [
+        [
+          {
+            "node": "Search Record Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Record Manager": {
+      "main": [
+        [
+          {
+            "node": "New Doc?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Doc?": {
+      "main": [
+        [
+          {
+            "node": "Check Identical Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Has It Changed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Identical Content": {
+      "main": [
+        [
+          {
+            "node": "Identical Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identical Exists?": {
+      "main": [
+        [
+          {
+            "node": "Determine Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Sync Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has It Changed?": {
+      "main": [
+        [
+          {
+            "node": "Delete Old Gemini Doc",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Sync Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Old Gemini Doc": {
+      "main": [
+        [
+          {
+            "node": "Delete Old Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Old Record": {
+      "main": [
+        [
+          {
+            "node": "Determine Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Determine Metadata": {
+      "main": [
+        [
+          {
+            "node": "Build Upload Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Upload Metadata": {
+      "main": [
+        [
+          {
+            "node": "Initiate Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initiate Upload": {
+      "main": [
+        [
+          {
+            "node": "Reload Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reload Binary": {
+      "main": [
+        [
+          {
+            "node": "Upload Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Binary": {
+      "main": [
+        [
+          {
+            "node": "Wait for Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Processing": {
+      "main": [
+        [
+          {
+            "node": "Add Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Record": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Sync Time": {
+      "main": [
+        [
+          {
+            "node": "Respond Already Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "9ae965a5-9de1-46f4-af71-d81c6b7672cc",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 0,
+  "tags": [],
+  "activeVersion": null
+}

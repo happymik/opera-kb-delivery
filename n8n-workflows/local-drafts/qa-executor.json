@@ -1,0 +1,656 @@
+{
+  "name": "Opera KB - QA Executor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qa/execute",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "qa-webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "qa-execute"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Opera KB QA Test Suite"
+        },
+        "options": {
+          "outputFormatting": {
+            "values": {
+              "general": "UNFORMATTED_VALUE"
+            }
+          }
+        }
+      },
+      "id": "read-questions",
+      "name": "Read Questions",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        300
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_DRIVE_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter to only questions that haven't been tested yet (no score)\n// or optionally re-run all if webhook body specifies rerun_all: true\nconst items = $input.all();\nconst webhookData = $('Webhook Trigger').first().json.body || {};\nconst rerunAll = webhookData.rerun_all || false;\nconst categoryFilter = webhookData.category || null;\nconst marketFilter = webhookData.market || null;\nconst limitCount = webhookData.limit || 0;\n\nlet filtered = items.filter(item => {\n  // Skip header row or empty rows\n  if (!item.json.question_id || item.json.question_id === 'question_id') return false;\n  \n  // If not rerunning all, skip already scored questions\n  if (!rerunAll && item.json.score !== undefined && item.json.score !== '' && item.json.score !== null) {\n    return false;\n  }\n  \n  // Apply category filter if specified\n  if (categoryFilter && item.json.category !== categoryFilter) {\n    return false;\n  }\n  \n  // Apply market filter if specified\n  if (marketFilter && item.json.market !== marketFilter) {\n    return false;\n  }\n  \n  return true;\n});\n\n// Apply limit if specified\nif (limitCount > 0) {\n  filtered = filtered.slice(0, limitCount);\n}\n\n// Add row numbers for later update (1-indexed, +2 for header)\nfiltered = filtered.map((item, index) => {\n  const originalIndex = items.findIndex(i => i.json.question_id === item.json.question_id);\n  return {\n    json: {\n      ...item.json,\n      _rowNumber: originalIndex + 2, // +1 for 1-index, +1 for header\n      _batchIndex: index\n    }\n  };\n});\n\nreturn filtered;"
+      },
+      "id": "filter-questions",
+      "name": "Filter Questions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize execution state\nconst items = $input.all();\nconst totalQuestions = items.length;\n\nreturn [{\n  json: {\n    total_questions: totalQuestions,\n    start_time: new Date().toISOString(),\n    results: [],\n    current_index: 0\n  }\n}];"
+      },
+      "id": "init-state",
+      "name": "Initialize State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-questions",
+      "name": "Loop Questions",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare the question for the chat agent\nconst item = $input.first();\n\nreturn [{\n  json: {\n    question_id: item.json.question_id,\n    question: item.json.question,\n    expected_answer: item.json.expected_answer,\n    source_document: item.json.source_document,\n    category: item.json.category,\n    market: item.json.market,\n    product: item.json.product,\n    difficulty: item.json.difficulty,\n    _rowNumber: item.json._rowNumber,\n    _batchIndex: item.json._batchIndex\n  }\n}];"
+      },
+      "id": "prepare-question",
+      "name": "Prepare Question",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.lomeai.com/webhook/kb-agent",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"question\": {{ JSON.stringify($json.question) }},\n  \"sessionId\": \"qa-executor-{{ $json.question_id }}\",\n  \"market\": {{ JSON.stringify($json.market || 'not specified') }},\n  \"product\": {{ JSON.stringify($json.product || 'not specified') }}\n}",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "query-chat-agent",
+      "name": "Query Chat Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        300
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine question data with RAG response\nconst questionData = $('Prepare Question').first().json;\nconst ragResponse = $input.first().json;\n\n// Extract response and citations\nlet ragAnswer = '';\nlet citations = [];\n\nif (ragResponse.body) {\n  ragAnswer = ragResponse.body.answer || ragResponse.body.output || '';\n  citations = ragResponse.body.sources || ragResponse.body.citations || [];\n} else if (ragResponse.answer) {\n  ragAnswer = ragResponse.answer;\n  citations = ragResponse.sources || [];\n} else if (ragResponse.error) {\n  ragAnswer = `ERROR: ${ragResponse.error}`;\n}\n\n// Format citations as comma-separated document names\nconst citationText = Array.isArray(citations) \n  ? citations.map(c => c.document || c.name || c).join(', ')\n  : String(citations || '');\n\nreturn [{\n  json: {\n    question_id: questionData.question_id,\n    question: questionData.question,\n    expected_answer: questionData.expected_answer,\n    source_document: questionData.source_document,\n    category: questionData.category,\n    market: questionData.market,\n    product: questionData.product,\n    difficulty: questionData.difficulty,\n    rag_response: ragAnswer,\n    citations: citationText,\n    _rowNumber: questionData._rowNumber,\n    _batchIndex: questionData._batchIndex,\n    _http_status: ragResponse.statusCode || 200\n  }\n}];"
+      },
+      "id": "combine-response",
+      "name": "Combine Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "gemini-evaluator",
+      "name": "Gemini Evaluator",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        500
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "YOUR_GEMINI_CREDENTIAL_ID",
+          "name": "YOUR_GEMINI_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are evaluating a RAG system response for accuracy and completeness.\n\n=== QUESTION ===\n{{ $json.question }}\n\n=== EXPECTED ANSWER ===\n{{ $json.expected_answer }}\n\n=== ACTUAL RAG RESPONSE ===\n{{ $json.rag_response }}\n\n=== CITED DOCUMENTS ===\n{{ $json.citations }}\n\n=== EXPECTED SOURCE DOCUMENT ===\n{{ $json.source_document }}\n\n=== EVALUATION CRITERIA ===\nScore each criterion as 0 (not met) or 1 (met):\n\n1. RELEVANT: Does the response address the specific question asked?\n2. ACCURATE: Does the response match the expected answer in substance?\n3. SOURCED: Did the RAG cite the correct source document(s)?\n4. COMPLETE: Are all key points from the expected answer covered?\n\n=== OUTPUT FORMAT ===\nRespond ONLY with valid JSON, no markdown or other text:\n{\n  \"scores\": {\n    \"relevant\": 0 or 1,\n    \"accurate\": 0 or 1,\n    \"sourced\": 0 or 1,\n    \"complete\": 0 or 1\n  },\n  \"total_score\": 0-4,\n  \"criteria_met\": \"comma-separated list of met criteria\",\n  \"evaluation_notes\": \"Brief explanation of scoring\"\n}",
+        "hasOutputParser": false,
+        "options": {}
+      },
+      "id": "evaluate-response",
+      "name": "Evaluate Response",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        1760,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse evaluation result and combine with question data\nconst questionData = $('Combine Response').first().json;\nconst evalResult = $input.first().json;\n\nlet evaluation = {\n  scores: { relevant: 0, accurate: 0, sourced: 0, complete: 0 },\n  total_score: 0,\n  criteria_met: '',\n  evaluation_notes: 'Failed to parse evaluation'\n};\n\ntry {\n  // Try to parse the LLM output\n  let evalText = evalResult.text || evalResult.output || evalResult.response || '';\n  \n  // Clean up the response - remove markdown code blocks if present\n  evalText = evalText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  \n  const parsed = JSON.parse(evalText);\n  evaluation = {\n    scores: parsed.scores || evaluation.scores,\n    total_score: parsed.total_score || 0,\n    criteria_met: parsed.criteria_met || '',\n    evaluation_notes: parsed.evaluation_notes || ''\n  };\n} catch (e) {\n  evaluation.evaluation_notes = `Parse error: ${e.message}. Raw: ${JSON.stringify(evalResult).substring(0, 200)}`;\n}\n\nreturn [{\n  json: {\n    question_id: questionData.question_id,\n    question: questionData.question,\n    expected_answer: questionData.expected_answer,\n    source_document: questionData.source_document,\n    category: questionData.category,\n    market: questionData.market,\n    product: questionData.product,\n    difficulty: questionData.difficulty,\n    rag_response: questionData.rag_response,\n    citations: questionData.citations,\n    score: evaluation.total_score,\n    criteria_met: evaluation.criteria_met,\n    evaluation_notes: evaluation.evaluation_notes,\n    scores_detail: evaluation.scores,\n    _rowNumber: questionData._rowNumber,\n    _batchIndex: questionData._batchIndex\n  }\n}];"
+      },
+      "id": "parse-evaluation",
+      "name": "Parse Evaluation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Opera KB QA Test Suite"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "question_id": "={{ $json.question_id }}"
+          },
+          "matchingColumns": [
+            "question_id"
+          ],
+          "schema": [
+            {
+              "id": "question_id",
+              "displayName": "question_id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "rag_response",
+              "displayName": "rag_response",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "citations",
+              "displayName": "citations",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "score",
+              "displayName": "score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "criteria_met",
+              "displayName": "criteria_met",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "id": "update-sheet",
+      "name": "Update Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2200,
+        300
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_DRIVE_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "seconds"
+      },
+      "id": "rate-limit-wait",
+      "name": "Rate Limit Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2420,
+        300
+      ],
+      "webhookId": "rate-limit-resume"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "collect-results",
+      "name": "Collect Results",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2860,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate summary report from all results\nconst allItems = $input.first().json.data || [];\n\nif (allItems.length === 0) {\n  return [{\n    json: {\n      summary: 'No questions were processed',\n      total_questions: 0\n    }\n  }];\n}\n\n// Calculate overall stats\nconst totalQuestions = allItems.length;\nconst totalScore = allItems.reduce((sum, item) => sum + (item.score || 0), 0);\nconst maxPossibleScore = totalQuestions * 4;\nconst overallAccuracy = ((totalScore / maxPossibleScore) * 100).toFixed(1);\n\n// Breakdown by category\nconst categoryStats = {};\nallItems.forEach(item => {\n  const cat = item.category || 'unknown';\n  if (!categoryStats[cat]) {\n    categoryStats[cat] = { count: 0, totalScore: 0 };\n  }\n  categoryStats[cat].count++;\n  categoryStats[cat].totalScore += item.score || 0;\n});\n\nconst categoryBreakdown = Object.entries(categoryStats).map(([cat, stats]) => ({\n  category: cat,\n  count: stats.count,\n  avgScore: (stats.totalScore / stats.count).toFixed(2),\n  accuracy: ((stats.totalScore / (stats.count * 4)) * 100).toFixed(1) + '%'\n}));\n\n// Breakdown by market\nconst marketStats = {};\nallItems.forEach(item => {\n  const market = item.market || 'unknown';\n  if (!marketStats[market]) {\n    marketStats[market] = { count: 0, totalScore: 0 };\n  }\n  marketStats[market].count++;\n  marketStats[market].totalScore += item.score || 0;\n});\n\nconst marketBreakdown = Object.entries(marketStats).map(([market, stats]) => ({\n  market: market,\n  count: stats.count,\n  avgScore: (stats.totalScore / stats.count).toFixed(2),\n  accuracy: ((stats.totalScore / (stats.count * 4)) * 100).toFixed(1) + '%'\n}));\n\n// Breakdown by product\nconst productStats = {};\nallItems.forEach(item => {\n  const product = item.product || 'unknown';\n  if (!productStats[product]) {\n    productStats[product] = { count: 0, totalScore: 0 };\n  }\n  productStats[product].count++;\n  productStats[product].totalScore += item.score || 0;\n});\n\nconst productBreakdown = Object.entries(productStats).map(([product, stats]) => ({\n  product: product,\n  count: stats.count,\n  avgScore: (stats.totalScore / stats.count).toFixed(2),\n  accuracy: ((stats.totalScore / (stats.count * 4)) * 100).toFixed(1) + '%'\n}));\n\n// Failed questions (score < 3)\nconst failedQuestions = allItems\n  .filter(item => (item.score || 0) < 3)\n  .map(item => ({\n    question_id: item.question_id,\n    question: item.question,\n    score: item.score,\n    criteria_met: item.criteria_met,\n    evaluation_notes: item.evaluation_notes\n  }));\n\n// Criteria breakdown\nconst criteriaHits = { relevant: 0, accurate: 0, sourced: 0, complete: 0 };\nallItems.forEach(item => {\n  const met = (item.criteria_met || '').toLowerCase();\n  if (met.includes('relevant')) criteriaHits.relevant++;\n  if (met.includes('accurate')) criteriaHits.accurate++;\n  if (met.includes('sourced')) criteriaHits.sourced++;\n  if (met.includes('complete')) criteriaHits.complete++;\n});\n\nconst criteriaBreakdown = {\n  relevant: ((criteriaHits.relevant / totalQuestions) * 100).toFixed(1) + '%',\n  accurate: ((criteriaHits.accurate / totalQuestions) * 100).toFixed(1) + '%',\n  sourced: ((criteriaHits.sourced / totalQuestions) * 100).toFixed(1) + '%',\n  complete: ((criteriaHits.complete / totalQuestions) * 100).toFixed(1) + '%'\n};\n\nreturn [{\n  json: {\n    summary: {\n      total_questions: totalQuestions,\n      total_score: totalScore,\n      max_possible_score: maxPossibleScore,\n      overall_accuracy: overallAccuracy + '%',\n      passed_count: allItems.filter(i => (i.score || 0) >= 3).length,\n      failed_count: failedQuestions.length\n    },\n    criteria_breakdown: criteriaBreakdown,\n    category_breakdown: categoryBreakdown,\n    market_breakdown: marketBreakdown,\n    product_breakdown: productBreakdown,\n    failed_questions: failedQuestions,\n    execution_time: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "generate-summary",
+      "name": "Generate Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3080,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        3300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle error from chat agent\nconst questionData = $('Prepare Question').first().json;\nconst error = $input.first().json;\n\nreturn [{\n  json: {\n    question_id: questionData.question_id,\n    question: questionData.question,\n    expected_answer: questionData.expected_answer,\n    source_document: questionData.source_document,\n    category: questionData.category,\n    market: questionData.market,\n    product: questionData.product,\n    difficulty: questionData.difficulty,\n    rag_response: `ERROR: ${error.message || error.error || 'Chat agent request failed'}`,\n    citations: '',\n    score: 0,\n    criteria_met: '',\n    evaluation_notes: 'Chat agent error - could not evaluate',\n    scores_detail: { relevant: 0, accurate: 0, sourced: 0, complete: 0 },\n    _rowNumber: questionData._rowNumber,\n    _batchIndex: questionData._batchIndex\n  }\n}];"
+      },
+      "id": "handle-error",
+      "name": "Handle Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-items",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-has-questions",
+      "name": "Has Questions?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"no_questions\",\n  \"message\": \"No questions to process. All questions may already be scored, or filters returned no results.\",\n  \"filters_applied\": {\n    \"rerun_all\": {{ $('Webhook Trigger').first().json.body?.rerun_all || false }},\n    \"category\": {{ JSON.stringify($('Webhook Trigger').first().json.body?.category || null) }},\n    \"market\": {{ JSON.stringify($('Webhook Trigger').first().json.body?.market || null) }},\n    \"limit\": {{ $('Webhook Trigger').first().json.body?.limit || 0 }}\n  }\n}",
+        "options": {}
+      },
+      "id": "respond-no-questions",
+      "name": "No Questions Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pass through filtered questions to the loop\n// Get items from Filter Questions node\nconst items = $('Filter Questions').all();\nreturn items;"
+      },
+      "id": "pass-to-loop",
+      "name": "Pass to Loop",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Questions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Questions": {
+      "main": [
+        [
+          {
+            "node": "Filter Questions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Questions": {
+      "main": [
+        [
+          {
+            "node": "Has Questions?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Questions?": {
+      "main": [
+        [
+          {
+            "node": "Pass to Loop",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Questions Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pass to Loop": {
+      "main": [
+        [
+          {
+            "node": "Initialize State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize State": {
+      "main": [
+        [
+          {
+            "node": "Loop Questions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Questions": {
+      "main": [
+        [
+          {
+            "node": "Prepare Question",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Collect Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Question": {
+      "main": [
+        [
+          {
+            "node": "Query Chat Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Chat Agent": {
+      "main": [
+        [
+          {
+            "node": "Combine Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Response": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Evaluator": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Evaluate Response",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Response": {
+      "main": [
+        [
+          {
+            "node": "Parse Evaluation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Evaluation": {
+      "main": [
+        [
+          {
+            "node": "Update Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Error": {
+      "main": [
+        [
+          {
+            "node": "Update Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Sheet": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Questions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Results": {
+      "main": [
+        [
+          {
+            "node": "Generate Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Summary": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "tags": []
+}

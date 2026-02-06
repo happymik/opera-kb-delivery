@@ -1,0 +1,738 @@
+{
+  "updatedAt": "2026-02-05T09:52:46.384Z",
+  "createdAt": "2026-02-05T08:58:16.535Z",
+  "id": "KbLDEmT9lEHS0whb",
+  "name": "Opera KB Agent (Webhook + Chat)",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kb-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "91a11ceb-93ab-4b96-bf8a-2c9d2b86d2f2",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        240
+      ],
+      "webhookId": "kb-agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "ec325f08-86de-410c-ad9a-b886db78242a",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -160,
+        0
+      ],
+      "webhookId": "46fc173d-07a4-4c5e-ad12-91963e51d063"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"question\": {{ JSON.stringify($json.chatInput) }},\n  \"sessionId\": {{ JSON.stringify($json.sessionId) }},\n  \"market\": \"not specified\",\n  \"product\": \"not specified\",\n  \"source\": \"chat\"\n}",
+        "options": {}
+      },
+      "id": "d92ec35c-048f-427b-8ecf-35dc6eb80aa3",
+      "name": "Normalize Chat",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        64,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"question\": {{ JSON.stringify($json.body.question) }},\n  \"sessionId\": {{ JSON.stringify($json.body.sessionId) }},\n  \"market\": {{ JSON.stringify($json.body.market || 'not specified') }},\n  \"product\": {{ JSON.stringify($json.body.product || 'not specified') }},\n  \"source\": \"webhook\"\n}",
+        "options": {}
+      },
+      "id": "46fe4e3f-5e24-4f31-b76c-7e4affe0b72e",
+      "name": "Normalize Webhook",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        64,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.question }}",
+        "options": {
+          "systemMessage": "You are an Opera browser knowledge base assistant. You help answer questions about influencer marketing campaigns, channel requirements, and product information for Opera browser products.\n\nWhen the user asks a question, use the file search tool to find relevant information from the Opera knowledge base documents.\n\nAlways cite your sources when providing information. If you cannot find relevant information, say so clearly.\n\nThe user's question is: {{ $json.question }}\nSession ID: {{ $json.sessionId }}\nMarket: {{ $json.market }}\nProduct: {{ $json.product }}"
+        }
+      },
+      "id": "bf8afbf4-ea42-430f-8dec-408c3b96162d",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        400,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "2903a32f-5915-41fc-b57d-439134473e32",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        240,
+        400
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "YOUR_GEMINI_CREDENTIAL_ID",
+          "name": "YOUR_GEMINI_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId }}",
+        "contextWindowLength": 10
+      },
+      "id": "ad79937e-ce19-4f46-94be-4717567ec866",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        448,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Search the Opera knowledge base documents. Use this tool to find information about Opera browser products, influencer marketing campaigns, channel requirements, or campaign rules. Input should be a specific question or search query.",
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=YOUR_GEMINI_API_KEY",
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "x-goog-api-key"
+            },
+            {
+              "name": "Content-Type"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [{\"role\": \"user\", \"parts\": [{\"text\": \"{query}\"}]}],\n  \"tools\": [{\n    \"fileSearch\": {\n      \"fileSearchStoreNames\": [\"fileSearchStores/opera-knowledge-base-gls9v6ztisdg\"]\n    }\n  }]\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The search query to look up in the Opera knowledge base",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "787d1e81-411a-4795-ae39-706b8e160132",
+      "name": "Search Knowledge Base",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "source-check",
+              "leftValue": "={{ $json.source }}",
+              "rightValue": "webhook",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ccdb5734-9ea8-46bb-996e-aa2e60277826",
+      "name": "Is Webhook?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        688,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"answer\": {{ JSON.stringify($('AI Agent').item.json.output) }},\n  \"sessionId\": {{ JSON.stringify($('Normalize Webhook').item.json.sessionId) }},\n  \"sources\": [],\n  \"agentMode\": true\n}",
+        "options": {}
+      },
+      "id": "4d7e8c82-aff4-4401-b8ae-d340025c3088",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        928,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "addRow",
+        "dataTableId": "YOUR_LOG_TABLE_ID"
+      },
+      "id": "af5abce4-cf96-409b-8916-47c23e8975b9",
+      "name": "Log Webhook Conversation",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        112
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "addRow",
+        "dataTableId": "YOUR_LOG_TABLE_ID"
+      },
+      "id": "256c7972-a125-416b-9996-d53b74fda0ad",
+      "name": "Log Chat Conversation",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        928,
+        272
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Normalize Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Chat": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Is Webhook?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Knowledge Base": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Webhook?": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Chat Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "Log Webhook Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "efbb2936-70e0-4246-a14e-4974a82ff4f5",
+  "activeVersionId": "61bba974-dae4-4cb4-8137-756e8354389f",
+  "versionCounter": 10,
+  "triggerCount": 2,
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-02-05T08:58:16.555Z",
+    "createdAt": "2026-02-05T08:58:16.555Z",
+    "versionId": "61bba974-dae4-4cb4-8137-756e8354389f",
+    "workflowId": "KbLDEmT9lEHS0whb",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "kb-agent",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "id": "91a11ceb-93ab-4b96-bf8a-2c9d2b86d2f2",
+        "name": "Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          -160,
+          240
+        ],
+        "webhookId": "kb-agent"
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "id": "ec325f08-86de-410c-ad9a-b886db78242a",
+        "name": "When chat message received",
+        "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+        "typeVersion": 1.4,
+        "position": [
+          -160,
+          0
+        ],
+        "webhookId": "46fc173d-07a4-4c5e-ad12-91963e51d063"
+      },
+      {
+        "parameters": {
+          "mode": "raw",
+          "jsonOutput": "={\n  \"question\": {{ JSON.stringify($json.chatInput) }},\n  \"sessionId\": {{ JSON.stringify($json.sessionId) }},\n  \"market\": \"not specified\",\n  \"product\": \"not specified\",\n  \"source\": \"chat\"\n}",
+          "options": {}
+        },
+        "id": "d92ec35c-048f-427b-8ecf-35dc6eb80aa3",
+        "name": "Normalize Chat",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          64,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "raw",
+          "jsonOutput": "={\n  \"question\": {{ JSON.stringify($json.body.question) }},\n  \"sessionId\": {{ JSON.stringify($json.body.sessionId) }},\n  \"market\": {{ JSON.stringify($json.body.market || 'not specified') }},\n  \"product\": {{ JSON.stringify($json.body.product || 'not specified') }},\n  \"source\": \"webhook\"\n}",
+          "options": {}
+        },
+        "id": "46fe4e3f-5e24-4f31-b76c-7e4affe0b72e",
+        "name": "Normalize Webhook",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          64,
+          240
+        ]
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "={{ $json.question }}",
+          "options": {
+            "systemMessage": "You are an Opera browser knowledge base assistant. You help answer questions about influencer marketing campaigns, channel requirements, and product information for Opera browser products.\n\nWhen the user asks a question, use the file search tool to find relevant information from the Opera knowledge base documents.\n\nAlways cite your sources when providing information. If you cannot find relevant information, say so clearly.\n\nThe user's question is: {{ $json.question }}\nSession ID: {{ $json.sessionId }}\nMarket: {{ $json.market }}\nProduct: {{ $json.product }}"
+          }
+        },
+        "id": "bf8afbf4-ea42-430f-8dec-408c3b96162d",
+        "name": "AI Agent",
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 1.7,
+        "position": [
+          400,
+          128
+        ]
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "id": "2903a32f-5915-41fc-b57d-439134473e32",
+        "name": "Google Gemini Chat Model",
+        "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+        "typeVersion": 1,
+        "position": [
+          240,
+          400
+        ],
+        "credentials": {
+          "googlePalmApi": {
+            "id": "rYyQ1LQoFYpO5sBP",
+            "name": "Google Gemini(PaLM) Api account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "sessionIdType": "customKey",
+          "sessionKey": "={{ $json.sessionId }}",
+          "contextWindowLength": 10
+        },
+        "id": "ad79937e-ce19-4f46-94be-4717567ec866",
+        "name": "Simple Memory",
+        "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "typeVersion": 1.3,
+        "position": [
+          448,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "toolDescription": "Search the Opera knowledge base documents. Use this tool to find information about Opera browser products, influencer marketing campaigns, channel requirements, or campaign rules. Input should be a specific question or search query.",
+          "method": "POST",
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=YOUR_GEMINI_API_KEY",
+          "sendHeaders": true,
+          "parametersHeaders": {
+            "values": [
+              {
+                "name": "x-goog-api-key"
+              },
+              {
+                "name": "Content-Type"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"contents\": [{\"role\": \"user\", \"parts\": [{\"text\": \"{query}\"}]}],\n  \"tools\": [{\n    \"fileSearch\": {\n      \"fileSearchStoreNames\": [\"fileSearchStores/opera-knowledge-base-gls9v6ztisdg\"]\n    }\n  }]\n}",
+          "placeholderDefinitions": {
+            "values": [
+              {
+                "name": "query",
+                "description": "The search query to look up in the Opera knowledge base",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "id": "787d1e81-411a-4795-ae39-706b8e160132",
+        "name": "Search Knowledge Base",
+        "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+        "typeVersion": 1.1,
+        "position": [
+          640,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "source-check",
+                "leftValue": "={{ $json.source }}",
+                "rightValue": "webhook",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "ccdb5734-9ea8-46bb-996e-aa2e60277826",
+        "name": "Is Webhook?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          688,
+          128
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={\n  \"answer\": {{ JSON.stringify($('AI Agent').item.json.output) }},\n  \"sessionId\": {{ JSON.stringify($('Normalize Webhook').item.json.sessionId) }},\n  \"sources\": [],\n  \"agentMode\": true\n}",
+          "options": {}
+        },
+        "id": "4d7e8c82-aff4-4401-b8ae-d340025c3088",
+        "name": "Respond to Webhook",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          928,
+          112
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "addRow",
+          "dataTableId": "YOUR_LOG_TABLE_ID"
+        },
+        "id": "af5abce4-cf96-409b-8916-47c23e8975b9",
+        "name": "Log Webhook Conversation",
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1,
+        "position": [
+          1152,
+          112
+        ],
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "operation": "addRow",
+          "dataTableId": "YOUR_LOG_TABLE_ID"
+        },
+        "id": "256c7972-a125-416b-9996-d53b74fda0ad",
+        "name": "Log Chat Conversation",
+        "type": "n8n-nodes-base.dataTable",
+        "typeVersion": 1,
+        "position": [
+          928,
+          272
+        ],
+        "onError": "continueRegularOutput"
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Normalize Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "When chat message received": {
+        "main": [
+          [
+            {
+              "node": "Normalize Chat",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Normalize Chat": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Normalize Webhook": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Agent": {
+        "main": [
+          [
+            {
+              "node": "Is Webhook?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Google Gemini Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Simple Memory": {
+        "ai_memory": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Search Knowledge Base": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Is Webhook?": {
+        "main": [
+          [
+            {
+              "node": "Respond to Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Log Chat Conversation",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Respond to Webhook": {
+        "main": [
+          [
+            {
+              "node": "Log Webhook Conversation",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Team Lome",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-02-05T08:58:24.242Z",
+        "id": 314,
+        "workflowId": "KbLDEmT9lEHS0whb",
+        "versionId": "61bba974-dae4-4cb4-8137-756e8354389f",
+        "event": "activated",
+        "userId": "YOUR_USER_ID"
+      }
+    ]
+  }
+}

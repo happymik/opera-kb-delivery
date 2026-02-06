@@ -1,0 +1,3607 @@
+{
+  "updatedAt": "2026-02-05T09:56:57.603Z",
+  "createdAt": "2026-02-05T09:40:41.573Z",
+  "id": "5mqRrJhP1VgicOkN",
+  "name": "Opera Knowledge Base - Ingestion Pipeline v3 (PROPERLY FIXED v2)",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## \ud83d\ude80 INGESTION PIPELINE\n\n**Opera Knowledge Base - Gemini File Search**\n\nThis workflow automatically syncs documents from Google Drive to the Gemini File Search Store for AI-powered document retrieval.\n\n**Key Features:**\n- \ud83d\udcc1 Auto-detect files from Google Drive\n- \ud83d\udd04 Smart change detection (hash-based)\n- \ud83e\udd16 AI metadata extraction via Gemini\n- \ud83d\udce4 Resumable uploads to Gemini File Search\n- \ud83d\udd12 Pipeline lock to prevent concurrent runs\n\n**Supported File Types:**\n- Google Docs, Sheets, Slides\n- PDF, Word, Excel, PowerPoint\n- Images\n\n---\nBuilt for Opera Influencer Marketing",
+        "height": 520,
+        "width": 340,
+        "color": 5
+      },
+      "id": "62f5ca70-0f33-4702-b6c6-6e65d3e10e79",
+      "name": "Sticky Note - Intro",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2816,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 1\ufe0f\u20e3 INITIALIZATION\n\nStarts every minute, loads config,\nverifies Gemini store exists.",
+        "height": 432,
+        "width": 816,
+        "color": 3
+      },
+      "id": "44cfc0a2-25b7-43a8-8fee-e9456ca4ff52",
+      "name": "Sticky Note - Init",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        1632
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2\ufe0f\u20e3 LOCK FLAG\n\nPrevents concurrent pipeline runs.\nChecks if already processing,\nsets lock before proceeding.",
+        "height": 448,
+        "width": 592,
+        "color": 6
+      },
+      "id": "c60f9ec5-42e5-40f5-a77d-790533a9b91e",
+      "name": "Sticky Note - Lock",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        416,
+        1616
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3\ufe0f\u20e3 FILE DISCOVERY\n\nSearches Google Drive folder,\nenriches file metadata,\nfilters supported file types.",
+        "height": 448,
+        "width": 832,
+        "color": 4
+      },
+      "id": "595a7c7a-291d-408c-a35e-1686bf5619a4",
+      "name": "Sticky Note - Discovery",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        1712
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 4\ufe0f\u20e3 FILE PROCESSING LOOP\n\nProcesses each file one-by-one.\nRoutes by file type to appropriate\ndownload handler.\n",
+        "height": 896,
+        "width": 896,
+        "color": 2
+      },
+      "id": "d3cc3a40-a37b-443e-a938-ef236ce930fe",
+      "name": "Sticky Note - Loop",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1696,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 5\ufe0f\u20e3 CHANGE DETECTION\n\nGenerates content hash,\nchecks if document exists,\ndetermines if content changed.",
+        "height": 736,
+        "width": 832,
+        "color": 7
+      },
+      "id": "9447e7bb-9ecc-4389-a332-19e955088269",
+      "name": "Sticky Note - Change Detection",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1840,
+        -528
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 6\ufe0f\u20e3 METADATA ENRICHMENT\n\n\ud83e\udd16 **AI-Powered Extraction**\n\n1. Extract text from document\n2. Prepare for LLM analysis\n3. Call Gemini to extract:\n   - Document summary\n   - Market (BR/DE/EN/TR/FR)\n   - Product (Desktop/Mobile/Air...)\n   - Document type\n4. Merge with path-based metadata",
+        "height": 1148,
+        "width": 1848
+      },
+      "id": "1f08075c-db84-4c33-8e85-f7c55d9f53e9",
+      "name": "Sticky Note - Metadata",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 7\ufe0f\u20e3 GEMINI UPLOAD\n\nResuamble upload protocol:\n1. Initialize upload session\n2. Reload binary data\n3. Upload file content\n4. Wait for processing\n5. Save record to database\n6. Return to loop",
+        "height": 712,
+        "width": 1024,
+        "color": 5
+      },
+      "id": "12b3a54a-0a89-4ed7-a96d-035ec7641bb9",
+      "name": "Sticky Note - Upload",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        192
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "95b1db86-ed5a-42f7-8e7f-b46342870044",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        1584
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "store-name",
+              "name": "storeName",
+              "value": "fileSearchStores/opera-knowledge-base-gls9v6ztisdg",
+              "type": "string"
+            },
+            {
+              "id": "gemini-key",
+              "name": "geminiApiKey",
+              "value": "YOUR_GEMINI_API_KEY",
+              "type": "string"
+            },
+            {
+              "id": "drive-folder",
+              "name": "driveFolderId",
+              "value": "1zyFOFMc0WHeeLJh2fujd0B-9LtCB8PfJ",
+              "type": "string"
+            },
+            {
+              "id": "max-file-size",
+              "name": "maxFileSizeBytes",
+              "value": 104857600,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "eb2bcd07-988a-4930-8a36-4c62a193645a",
+      "name": "Get Store Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -384,
+        1904
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://generativelanguage.googleapis.com/v1beta/fileSearchStores/opera-knowledge-base-gls9v6ztisdg?key={{ $json.geminiApiKey }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "60d8204c-7cfc-4562-975f-ff67019ac1f2",
+      "name": "Get Store ID",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -160,
+        1904
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.name }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "81ac1e97-b4cd-45a3-8077-da068b853adb",
+      "name": "Store Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        64,
+        1904
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "YOUR_PIPELINE_LOCK_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Pipeline Lock",
+          "cachedResultUrl": "/projects/YOUR_PROJECT_ID/datatables/YOUR_PIPELINE_LOCK_TABLE_ID"
+        }
+      },
+      "id": "b9a5d098-44f3-4c1e-b2da-4932c7b6d2c8",
+      "name": "Check Lock",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        288,
+        1904
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "60a59e50-a88a-461c-b716-28dbb5ea2049",
+              "leftValue": "={{ $json.processing }} ",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3bef2f9d-6b56-418b-b9c4-7fb60c1bb4e2",
+      "name": "Is Locked?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        800,
+        1904
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "YOUR_PIPELINE_LOCK_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Pipeline Lock",
+          "cachedResultUrl": "/projects/YOUR_PROJECT_ID/datatables/YOUR_PIPELINE_LOCK_TABLE_ID"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "startedAt": "={{ $now.toISO() }}",
+            "lockName": "={{ $json.lockName }}",
+            "processing": "={{ $json.processing }}",
+            "completedAt": "={{ $json.completedAt }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "lockName",
+              "displayName": "lockName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "processing",
+              "displayName": "processing",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "startedAt",
+              "displayName": "startedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "completedAt",
+              "displayName": "completedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "7c72ef12-1da9-40b9-a798-aae67e9119f6",
+      "name": "Set Lock",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1088,
+        1904
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "resource": "fileFolder",
+        "returnAll": true,
+        "filter": {
+          "folderId": {
+            "mode": "id",
+            "value": "1zyFOFMc0WHeeLJh2fujd0B-9LtCB8PfJ"
+          },
+          "whatToSearch": "all"
+        },
+        "options": {
+          "fields": [
+            "*"
+          ]
+        }
+      },
+      "id": "2615216f-5894-4442-8bb3-5f3866258d24",
+      "name": "Search Drive Folder",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1536,
+        1904
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_DRIVE_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nfunction categorizeFileType(mimeType) {\n  if (mimeType === 'application/vnd.google-apps.folder') return 'Folder';\n  if (mimeType === 'application/vnd.google-apps.document') return 'Google Doc';\n  if (mimeType === 'application/vnd.google-apps.spreadsheet') return 'Google Sheet';\n  if (mimeType === 'application/vnd.google-apps.presentation') return 'Google Slides';\n  if (mimeType === 'application/pdf') return 'PDF';\n  if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'Word Doc';\n  if (mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return 'Excel';\n  if (mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') return 'PowerPoint';\n  if (mimeType && mimeType.startsWith('image/')) return 'Image';\n  if (mimeType && mimeType.startsWith('video/')) return 'Video';\n  if (mimeType === 'application/zip') return 'ZIP';\n  return 'Other';\n}\n\n// Get the global folder cache built during traversal\nconst staticData = $getWorkflowStaticData('global');\nconst folderCache = staticData.folderCache || {};\n\nconsole.log(`Using global folder cache with ${Object.keys(folderCache).length} folders`);\n\n// Resolve full path by walking parent chain using global cache\nfunction resolvePath(item) {\n  const parts = [item.json.name];\n  let parentIds = item.json.parents || [];\n\n  // Walk up the parent chain (max 10 levels to prevent infinite loops)\n  let depth = 0;\n  while (parentIds.length > 0 && depth < 10) {\n    const parentId = parentIds[0];\n    const parent = folderCache[parentId];\n    if (parent) {\n      parts.unshift(parent.name);\n      parentIds = parent.parents;\n    } else {\n      // Parent not in cache (might be root folder or outside scope)\n      break;\n    }\n    depth++;\n  }\n\n  return parts.join('/');\n}\n\n// Enrich all items\nfor (const item of items) {\n  const mimeType = item.json.mimeType || '';\n  item.json.isFolder = mimeType === 'application/vnd.google-apps.folder';\n  item.json.fileType = categorizeFileType(mimeType);\n  item.json.path = resolvePath(item);\n}\n\n// Clear the folder cache after path resolution is complete\nstaticData.folderCache = {};\n\nreturn items;"
+      },
+      "id": "1eff9d18-8f49-4ec3-b804-ee2e7b15b98b",
+      "name": "Enrich File Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2432,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.isFolder }}",
+              "operation": "equals",
+              "value2": "false"
+            },
+            {
+              "value1": "={{ $json.fileType }}",
+              "operation": "notEquals",
+              "value2": "Video"
+            },
+            {
+              "value1": "={{ $json.fileType }}",
+              "operation": "notEquals",
+              "value2": "ZIP"
+            },
+            {
+              "value1": "={{ $json.fileType }}",
+              "operation": "notEquals",
+              "value2": "Image"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cc32621e-0713-4d19-8365-dc7793d3b2c7",
+      "name": "Filter Supported Files",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.1,
+      "position": [
+        2656,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "27686f08-5029-449d-9a86-8b0e6eb89dff",
+      "name": "Loop Over Files",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        3104,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "YOUR_PIPELINE_LOCK_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Pipeline Lock",
+          "cachedResultUrl": "/projects/YOUR_PROJECT_ID/datatables/YOUR_PIPELINE_LOCK_TABLE_ID"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyValue": "={{ $('Check Lock').first().json.id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "processing": "false",
+            "completedAt": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "lockName",
+              "displayName": "lockName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "processing",
+              "displayName": "processing",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "startedAt",
+              "displayName": "startedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "completedAt",
+              "displayName": "completedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "4d3e11b2-a33a-4704-a4b7-7853c7878b45",
+      "name": "Clear Lock",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        6912,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "35ed39e7-2e2f-441c-97f0-2006b4e21429",
+                    "leftValue": "={{ $json.fileType }}",
+                    "rightValue": "Google Doc",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "cb90e107-4506-4b21-a93d-f8387ee7770e",
+                    "leftValue": "={{ $json.fileType }}",
+                    "rightValue": "Google Sheet",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "2ebca5a2-3167-45c1-bae7-9af8f0d60714"
+                  },
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "06383d09-51b0-4630-875e-3ef910c579ec"
+                  },
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "3a41952f-35ab-45c1-b0c3-23d9212eab16"
+                  },
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "5b683079-7661-4441-928b-1d621e8e85b7"
+                  },
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "image/",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    },
+                    "id": "5ca64321-c534-4011-9df0-a2bc5211dbeb"
+                  }
+                ],
+                "combinator": "or"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": 2
+        }
+      },
+      "id": "ae9f7596-269a-495d-aaca-e832b5d9d007",
+      "name": "Route by File Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -2176,
+        992
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {
+          "binaryPropertyName": "data",
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "text/x-markdown"
+            }
+          }
+        }
+      },
+      "id": "8013f17f-605d-4eeb-94d6-3bd4846ed52d",
+      "name": "Export Google Doc",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -1952,
+        400
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_DRIVE_CREDENTIAL_NAME"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "id": "e87d7726-b453-4e98-a8a4-5734d69466e2",
+      "name": "Download Binary File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -1728,
+        1088
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_DRIVE_CREDENTIAL_NAME"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nfunction hashString(str) {\n    let h1 = 0xdeadbeef;\n    let h2 = 0x41c6ce57;\n    for (let i = 0; i < str.length; i++) {\n        const ch = str.charCodeAt(i);\n        h1 = Math.imul(h1 ^ ch, 2654435761);\n        h2 = Math.imul(h2 ^ ch, 1597334677);\n    }\n    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);\n    h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);\n    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);\n    h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);\n    const hex1 = (h1 >>> 0).toString(16).padStart(8, '0');\n    const hex2 = (h2 >>> 0).toString(16).padStart(8, '0');\n    return hex1 + hex2;\n}\n\nfor (const item of items) {\n    try {\n        const hashInput = (item.json.id || '') + '|' + (item.json.name || '') + '|' + (item.json.modifiedTime || '') + '|' + (item.json.size || '');\n        item.json.hash = hashString(hashInput);\n        item.json.fileSizeBytes = item.json.size || 0;\n    } catch (error) {\n        item.json.hash = 'ERROR_' + error.message.substring(0, 50);\n    }\n}\nreturn items;"
+      },
+      "id": "aba6136c-a1f0-4cd9-ad36-6882c70a010d",
+      "name": "Generate Hash",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1504,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "YOUR_RECORD_MANAGER_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Gemini Record Manager",
+          "cachedResultUrl": "/projects/YOUR_PROJECT_ID/datatables/YOUR_RECORD_MANAGER_TABLE_ID"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "driveFileId",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "43b04116-5d3c-4c27-9f15-5da943aac9a7",
+      "name": "Search Record Manager",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -1280,
+        448
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "new-doc-check",
+              "leftValue": "={{ $json.driveFileId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "name": "filter.operator.empty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "ac36b95f-7a18-4b97-a5a5-2b08000909dd",
+      "name": "New Doc?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1056,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "YOUR_RECORD_MANAGER_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Gemini Record Manager",
+          "cachedResultUrl": "/projects/YOUR_PROJECT_ID/datatables/YOUR_RECORD_MANAGER_TABLE_ID"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "hash",
+              "keyValue": "={{ $('Generate Hash').item.json.hash }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "3ec361e5-30a5-4d2c-9823-7ef0fded1b34",
+      "name": "Check Identical Content",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -608,
+        272
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "identical-check",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "name": "filter.operator.empty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ecbd506c-6988-47ee-80fd-c1e152865460",
+      "name": "Identical Content Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -384,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "hash-compare",
+              "leftValue": "={{ $('Generate Hash').item.json.hash }}",
+              "rightValue": "={{ $('Search Record Manager').item.json.hash }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals",
+                "name": "filter.operator.notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d1e10426-4ce6-4e27-896b-465490301a6e",
+      "name": "Has It Changed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -832,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/{{ $('Search Record Manager').item.json.geminiDocId }}?force=true&key={{ $('Get Store Config').first().json.geminiApiKey }}",
+        "options": {}
+      },
+      "id": "e4215e79-364b-4a39-9ccb-7514a5a341b6",
+      "name": "Delete Old Gemini Doc",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -608,
+        800
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "value": "YOUR_RECORD_MANAGER_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Gemini Record Manager",
+          "cachedResultUrl": "/projects/YOUR_PROJECT_ID/datatables/YOUR_RECORD_MANAGER_TABLE_ID"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyValue": "={{ $('Search Record Manager').item.json.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b4b5f3c7-06c5-468a-b590-5385bb6f181f",
+      "name": "Delete Old Record",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -384,
+        800
+      ],
+      "alwaysOutputData": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "YOUR_RECORD_MANAGER_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Gemini Record Manager",
+          "cachedResultUrl": "/projects/YOUR_PROJECT_ID/datatables/YOUR_RECORD_MANAGER_TABLE_ID"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "driveFileId",
+              "keyValue": "={{ $json.driveFileId }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lastSyncedAt": "={{ $now.toISO() }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "4b10e60b-07fa-49ab-8731-afdd38dda70c",
+      "name": "Update Sync Time",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -160,
+        304
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "3eade563-98db-49e9-9ca3-74464aa340f5",
+      "name": "Do Nothing",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        64,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Determine metadata from path or use user-provided\nconst items = $input.all();\n\nfor (const item of items) {\n  if (item.json.isWebhookUpload && item.json.userMetadata) {\n    item.json.metadata = {\n      market: item.json.userMetadata.market || 'all',\n      product: item.json.userMetadata.product || 'general',\n      category: item.json.userMetadata.category || 'document',\n      status: item.json.userMetadata.status || 'active'\n    };\n    continue;\n  }\n\n  const path = (item.json.path || '').toUpperCase();\n  const name = (item.json.name || '').toUpperCase();\n  const combined = path + ' ' + name;\n\n  let market = 'all';\n  if (/\\bBR\\b|BRAZIL/.test(combined)) market = 'br';\n  else if (/\\bDE\\b|GERMAN/.test(combined)) market = 'de';\n  else if (/\\bEN\\b|ENGLISH/.test(combined)) market = 'en';\n  else if (/\\bTR\\b|TURK/.test(combined)) market = 'tr';\n  else if (/\\bFR\\b|FRANCE|FRENCH/.test(combined)) market = 'fr';\n\n  let product = 'general';\n  if (/DESKTOP/.test(combined)) product = 'desktop';\n  else if (/MOBILE/.test(combined)) product = 'mobile';\n  else if (/\\bAIR\\b/.test(combined)) product = 'air';\n  else if (/NEON/.test(combined)) product = 'neon';\n  else if (/SPOTIFY/.test(combined)) product = 'spotify';\n  else if (/\\bR3\\b/.test(combined)) product = 'r3';\n  else if (/\\bR2\\b/.test(combined)) product = 'r2';\n\n  let category = 'document';\n  if (/BRIEF/.test(combined)) category = 'brief';\n  else if (/ACTIVE.?CAMPAIGN|CAMPAIGN.?RULES/.test(combined)) category = 'campaign-rules';\n  else if (/ONBOARDING|MANUAL|PLAYBOOK|CHECKLIST/.test(combined)) category = 'onboarding';\n  else if (/PROCESS/.test(combined)) category = 'process';\n  else if (/INVOICE/.test(combined)) category = 'invoice';\n  else if (/KPI/.test(combined)) category = 'kpi';\n\n  let status = 'active';\n  if (/ARCHIVE|OLD.?VERSION|DON.?T.?USE|NO.?LONGER/.test(combined)) status = 'archived';\n\n  item.json.metadata = { market, product, category, status };\n}\n\nreturn items;"
+      },
+      "id": "531dca67-e05b-44fc-87f5-07bf3ef6a3d3",
+      "name": "Determine Path Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nfor (const item of items) {\n    try {\n        const exportDoc = $('Export Google Doc').item;\n        if (exportDoc && exportDoc.binary) {\n            item.binary = exportDoc.binary;\n            continue;\n        }\n    } catch {}\n    try {\n        const downloadBin = $('Download Binary File').item;\n        if (downloadBin && downloadBin.binary) {\n            item.binary = downloadBin.binary;\n            continue;\n        }\n    } catch {}\n    item.json.binaryReloadError = 'No binary data found from any download node';\n}\nreturn items;"
+      },
+      "id": "4e9628e3-c4de-42aa-a2a5-cfd66a1787b3",
+      "name": "Reload Binary for Extract",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "id": "52d14bce-146a-4c51-bd0d-1714d98f4580",
+      "name": "Extract Text from File",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        288,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-text",
+              "name": "textForLLM",
+              "value": "={{ $json.data ? $json.data.substring(0, 4000) : '' }}",
+              "type": "string"
+            },
+            {
+              "id": "field-filename",
+              "name": "fileName",
+              "value": "={{ $('Determine Path Metadata').first().json.name || 'Unknown' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "0ef6c9f1-04ff-49a0-a2f4-865fad29649b",
+      "name": "Prepare Text for LLM",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        512,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze this document and extract metadata.\n\nDocument filename: {{ $json.fileName }}\nDocument content (first 4000 chars):\n{{ $json.textForLLM }}\n\nReturn ONLY a JSON object with:\n- document_summary: 2-3 sentence summary\n- document_market: one of: BR, DE, EN, TR, FR, ALL, UNKNOWN\n- document_product: one of: Desktop, Mobile, Air, Neon, GX, Spotify, ALL, UNKNOWN\n- document_type: one of: brief, guidelines, requirements, FAQ, report, other",
+        "hasOutputParser": true
+      },
+      "id": "729e0f2d-ed9e-4c31-81a1-863bfb7d568f",
+      "name": "Extract Metadata",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        736,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "0dc6381e-68ff-43f2-84e0-a2bd46b92b1f",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        752,
+        800
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "rYyQ1LQoFYpO5sBP",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"document_summary\": { \"type\": \"string\" },\n    \"document_market\": { \"type\": \"string\", \"enum\": [\"BR\", \"DE\", \"EN\", \"TR\", \"FR\", \"ALL\", \"UNKNOWN\"] },\n    \"document_product\": { \"type\": \"string\", \"enum\": [\"Desktop\", \"Mobile\", \"Air\", \"Neon\", \"GX\", \"Spotify\", \"ALL\", \"UNKNOWN\"] },\n    \"document_type\": { \"type\": \"string\", \"enum\": [\"brief\", \"guidelines\", \"requirements\", \"FAQ\", \"report\", \"other\"] }\n  },\n  \"required\": [\"document_summary\", \"document_market\", \"document_product\", \"document_type\"]\n}"
+      },
+      "id": "0826c718-8164-47b0-b06f-f7cd32239130",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge AI-extracted metadata with path-based metadata\n// FIXED: Prioritize path-based detection over AI fallback\nconst items = $input.all();\n\nfor (const item of items) {\n  const ai = item.json.output || item.json || {};\n  const pathMeta = $('Determine Path Metadata').first().json.metadata || {};\n  \n  // Path-based detection takes priority when it found a specific market\n  const usePathMarket = pathMeta.market && pathMeta.market !== 'all';\n  const usePathProduct = pathMeta.product && pathMeta.product !== 'general';\n  \n  // AI output is only used when path detection found nothing specific\n  // AND AI returned something other than UNKNOWN or ALL\n  const aiMarketValid = ai.document_market && \n                        ai.document_market !== 'UNKNOWN' && \n                        ai.document_market.toUpperCase() !== 'ALL';\n  const aiProductValid = ai.document_product && \n                         ai.document_product !== 'UNKNOWN' && \n                         ai.document_product.toUpperCase() !== 'ALL';\n  \n  item.json.metadata = {\n    market: usePathMarket \n      ? pathMeta.market \n      : (aiMarketValid ? ai.document_market.toLowerCase() : pathMeta.market || 'all'),\n    product: usePathProduct \n      ? pathMeta.product \n      : (aiProductValid ? ai.document_product.toLowerCase() : pathMeta.product || 'general'),\n    category: pathMeta.category || 'document',\n    status: pathMeta.status || 'active',\n    document_summary: ai.document_summary || '',\n    document_type: ai.document_type || 'other',\n    ai_market: ai.document_market || 'UNKNOWN',\n    ai_product: ai.document_product || 'UNKNOWN',\n    path_market: pathMeta.market || 'all',\n    path_product: pathMeta.product || 'general'\n  };\n}\n\nreturn items;\n"
+      },
+      "id": "890bd569-fcde-41d8-ae9b-d85071b709d1",
+      "name": "Merge AI Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build upload metadata for Gemini File Search API\nconst items = $input.all();\n\nfor (const item of items) {\n  const meta = item.json.metadata || {};\n  const fileName = item.json.name || item.json.fileName || 'Untitled';\n  const filePath = item.json.path || '';\n  const driveFileId = item.json.id || '';\n  \n  let displayName = fileName;\n  if (meta.market && meta.market !== 'all') {\n    displayName = `[${meta.market.toUpperCase()}] ${displayName}`;\n  }\n  if (meta.product && meta.product !== 'general') {\n    displayName = `${displayName} (${meta.product})`;\n  }\n\n  item.json.uploadMetadata = {\n    display_name: displayName,\n    custom_metadata: [\n      { key: \"market\", string_value: meta.market || 'all' },\n      { key: \"product\", string_value: meta.product || 'general' },\n      { key: \"category\", string_value: meta.category || 'document' },\n      { key: \"status\", string_value: meta.status || 'active' },\n      { key: \"document_summary\", string_value: meta.document_summary || '' },\n      { key: \"document_type\", string_value: meta.document_type || 'other' },\n      { key: \"source_path\", string_value: filePath },\n      { key: \"drive_file_id\", string_value: driveFileId },\n      { key: \"original_filename\", string_value: fileName }\n    ],\n    chunking_config: {\n      whitespace_chunk_config: {\n        max_tokens_per_chunk: 500,\n        max_overlap_tokens: 100\n      }\n    }\n  };\n}\n\nreturn items;"
+      },
+      "id": "8bd969f2-cb88-478b-bddc-3a56a25fe534",
+      "name": "Build Upload Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const opName = $input.first().json.body.name;\nconst apiKey = $('Get Store Config').first().json.geminiApiKey;\nconst maxRetries = 12;\nfor (let i = 0; i < maxRetries; i++) {\n  const resp = await this.helpers.httpRequest({method: 'GET', url: `https://generativelanguage.googleapis.com/v1beta/${opName}?key=${apiKey}`, json: true});\n  if (resp.done === true) {\n    return [{json: resp}];\n  }\n  await new Promise(r => setTimeout(r, 5000));\n}\nthrow new Error('Processing did not complete after max retries');"
+      },
+      "id": "3e82d12d-1584-4205-a01e-d367157c8840",
+      "name": "Wait for Processing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        560
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "YOUR_RECORD_MANAGER_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Gemini Record Manager",
+          "cachedResultUrl": "/projects/YOUR_PROJECT_ID/datatables/YOUR_RECORD_MANAGER_TABLE_ID"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "storeName": "={{ $json.response.documentName.split('/documents/')[0] }}",
+            "documentName": "={{ $('Loop Over Files').item.json.name }}",
+            "geminiDocId": "={{ $json.response.documentName.split('/').pop() }}",
+            "mimeType": "={{ $('Loop Over Files').item.json.mimeType }}",
+            "market": "={{ $('Build Upload Metadata').item.json.metadata.market }}",
+            "status": "={{ $('Build Upload Metadata').item.json.metadata.status }}",
+            "product": "={{ $('Build Upload Metadata').item.json.metadata.product }}",
+            "driveFileId": "={{ $('Loop Over Files').item.json.id }}",
+            "fileName": "={{ $('Loop Over Files').item.json.name }}",
+            "filePath": "={{ $('Loop Over Files').item.json.path }}",
+            "hash": "={{  $('Generate Hash').item.json.hash }} ",
+            "uploadedAt": "={{  $now.toISO() }} ",
+            "driveModifiedAt": "={{  $('Loop Over Files').item.json.modifiedTime }} ",
+            "lastSyncedAt": "={{  $now.toISO() }} ",
+            "uploadSource": "Google Drive",
+            "fileType": "={{  $('Loop Over Files').item.json.fileType }} ",
+            "category": "={{ $('Build Upload Metadata').item.json.metadata.category }}",
+            "summary": "={{ $('Merge AI Metadata').item.json.metadata.document_summary }}",
+            "documentType": "={{ $('Merge AI Metadata').item.json.metadata.document_type }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "storeName",
+              "displayName": "storeName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "documentName",
+              "displayName": "documentName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "geminiDocId",
+              "displayName": "geminiDocId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "driveFileId",
+              "displayName": "driveFileId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "fileName",
+              "displayName": "fileName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "filePath",
+              "displayName": "filePath",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "mimeType",
+              "displayName": "mimeType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "fileType",
+              "displayName": "fileType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "hash",
+              "displayName": "hash",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "market",
+              "displayName": "market",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "product",
+              "displayName": "product",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "uploadedAt",
+              "displayName": "uploadedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "lastSyncedAt",
+              "displayName": "lastSyncedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "driveModifiedAt",
+              "displayName": "driveModifiedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "uploadSource",
+              "displayName": "uploadSource",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "documentType",
+              "displayName": "documentType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "ad3740ea-bfce-4271-90d0-baeb204f5e6b",
+      "name": "Add Record",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2432,
+        752
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/upload/v1beta/{{  $('Get Store Config').first().json.storeName }}:uploadToFileSearchStore?key={{  $('Get Store Config').first().json.geminiApiKey }} ",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Goog-Upload-Protocol",
+              "value": "raw"
+            },
+            {
+              "name": "X-Goog-Upload-Command",
+              "value": "upload, finalize"
+            },
+            {
+              "name": "Content-Type",
+              "value": "={{ ($input.item.binary?.data?.mimeType ?? \"application/octet-stream\").replace(\"text/x-markdown\", \"text/markdown\") }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "id": "a13fb777-38a1-4b2f-896d-312f2f6b4cc4",
+      "name": "Upload File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        576
+      ],
+      "retryOnFail": false,
+      "maxTries": 1,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nfor (const item of items) {\n    try {\n        const exportDoc = $('Export Google Doc').item;\n        if (exportDoc && exportDoc.binary) {\n            item.binary = exportDoc.binary;\n            continue;\n        }\n    } catch {}\n    try {\n        const downloadBin = $('Download Binary File').item;\n        if (downloadBin && downloadBin.binary) {\n            item.binary = downloadBin.binary;\n            continue;\n        }\n    } catch {}\n    item.json.binaryReloadError = 'No binary data found from any download node';\n}\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        576
+      ],
+      "id": "b2230fd2-4de7-4cec-90ef-01700122faab",
+      "name": "Reload Binary for Upload"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nfor (const item of items) {\n    if (item.json.processing === 'true' || item.json.processing === true) {\n        const startedAt = new Date(item.json.startedAt);\n        const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000);\n        if (startedAt < tenMinAgo) {\n            item.json.processing = 'false';\n            item.json.staleLockDetected = true;\n        }\n    }\n}\nreturn items;"
+      },
+      "id": "70c77f72-e5bb-412b-a598-92ddf488cc0e",
+      "name": "Check Stale Lock",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        1904
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData(\"global\");\nstaticData.runId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);\nstaticData.startedAt = new Date().toISOString();\nstaticData.fileResults = [];\nstaticData.failedUploads = [];\nstaticData.retryCycles = 0;\nstaticData.skippedFiles = 0;\nstaticData.totalFiles = 0;\nstaticData.processedCount = 0;\nreturn $input.all();"
+      },
+      "id": "init-run-log-001",
+      "name": "Init Run Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        1904
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.fileResults) staticData.fileResults = [];\n\nlet fileName = 'unknown';\nlet fileId = '';\ntry {\n  const loopItem = $('Loop Over Files').item;\n  fileName = loopItem.json.name || 'unknown';\n  fileId = loopItem.json.id || '';\n} catch(e) {}\n\nstaticData.fileResults.push({\n  fileName,\n  fileId,\n  status: 'success',\n  geminiDocId: (item.json.body && item.json.body.response && item.json.body.response.documentName) || ''\n});\n\nreturn [item];"
+      },
+      "id": "track-upload-success-001",
+      "name": "Track Upload Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1984,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.failedUploads) staticData.failedUploads = [];\nif (!staticData.fileResults) staticData.fileResults = [];\n\nconst meta = item.json.uploadMetadata || {};\nconst customMeta = meta.custom_metadata || [];\nconst findMeta = (key) => (customMeta.find(m => m.key === key) || {}).string_value || '';\n\nconst fileName = findMeta('original_filename') || meta.display_name || 'unknown';\nconst fileId = findMeta('drive_file_id') || '';\nconst errorMsg = (item.json.error && item.json.error.message) || 'Upload failed';\n\n// Store all info needed for retry: the file's Drive ID, type, and metadata\nconst loopItem = {};\ntry {\n  const li = $('Loop Over Files').item;\n  if (li && li.json) {\n    Object.assign(loopItem, {\n      driveFileId: li.json.id || '',\n      fileName: li.json.name || '',\n      mimeType: li.json.mimeType || '',\n      fileType: li.json.fileType || '',\n      modifiedTime: li.json.modifiedTime || '',\n      path: li.json.path || ''\n    });\n  }\n} catch(e) {}\n\n// Store hash and metadata for retry\nlet hash = '';\ntry { hash = $('Generate Hash').item.json.hash || ''; } catch(e) {}\n\nlet aiMetadata = {};\ntry { aiMetadata = $('Merge AI Metadata').first().json.metadata || {}; } catch(e) {}\n\nlet buildMeta = {};\ntry { buildMeta = $('Build Upload Metadata').first().json || {}; } catch(e) {}\n\nstaticData.failedUploads.push({\n  ...loopItem,\n  hash,\n  aiMetadata,\n  buildMeta,\n  uploadMetadata: meta,\n  error: errorMsg,\n  attempts: 1\n});\n\nstaticData.fileResults.push({\n  fileName,\n  fileId,\n  status: 'failed',\n  error: errorMsg\n});\n\nreturn [item];"
+      },
+      "id": "track-upload-failure-001",
+      "name": "Track Upload Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2432,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nstaticData.failedExports = (staticData.failedExports || 0) + 1;\n\nlet fileName = 'unknown';\nlet fileType = 'unknown';\ntry { \n  fileName = $('Loop Over Files').item.json.name || 'unknown'; \n  fileType = $('Loop Over Files').item.json.fileType || 'unknown';\n} catch(e) {}\n\nif (!staticData.fileResults) staticData.fileResults = [];\nstaticData.fileResults.push({\n  fileName,\n  fileType,\n  status: 'export_download_failed',\n  reason: 'Failed to export or download from Google Drive',\n  timestamp: new Date().toISOString()\n});\n\nreturn $input.all();"
+      },
+      "id": "track-export-download-failure-001",
+      "name": "Track Export/Download Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1504,
+        944
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nstaticData.skippedFiles = (staticData.skippedFiles || 0) + 1;\n\nlet fileName = 'unknown';\ntry { fileName = $('Loop Over Files').item.json.name || 'unknown'; } catch(e) {}\n\nif (!staticData.fileResults) staticData.fileResults = [];\nstaticData.fileResults.push({\n  fileName,\n  status: 'skipped',\n  reason: 'unchanged'\n});\n\nreturn $input.all();"
+      },
+      "id": "track-skip-001",
+      "name": "Track Skip",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        288,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nstaticData.totalFiles = $input.all().length;\nreturn $input.all();"
+      },
+      "id": "count-total-files-001",
+      "name": "Count Total Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst failures = staticData.failedUploads || [];\n\nreturn [{\n  json: {\n    hasFailures: failures.length > 0,\n    failureCount: failures.length,\n    retryCycle: 0,\n    failures: failures\n  }\n}];\n\nstaticData._retryTotal = failures.length;\nstaticData._retryProcessed = 0;"
+      },
+      "id": "collect-results-001",
+      "name": "Collect Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3328,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fail-check-1",
+              "leftValue": "={{ $json.hasFailures }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "name": "filter.operator.true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has-failures-001",
+      "name": "Has Failures?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3552,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst cycle = staticData.retryCycles || 0;\nconst waitMs = [10000, 30000, 60000][cycle] || 60000;\n\n// Wait with backoff\nawait new Promise(resolve => setTimeout(resolve, waitMs));\n\n// Output each failed file as separate item for the retry loop\nconst failures = staticData.failedUploads || [];\nreturn failures.map(f => ({ json: { ...f, retryCycle: cycle } }));"
+      },
+      "id": "wait-before-retry-001",
+      "name": "Wait Before Retry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3776,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst failures = staticData.failedUploads || [];\nif (failures.length === 0) return [];\nreturn failures.map(f => ({ json: f }));"
+      },
+      "id": "retry-loop-001",
+      "name": "Emit Retry Failures",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4000,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.driveFileId }}"
+        },
+        "options": {
+          "binaryPropertyName": "data",
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "text/x-markdown"
+            }
+          }
+        }
+      },
+      "id": "re-export-retry-001",
+      "name": "Re-Export for Retry",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        4224,
+        304
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_DRIVE_CREDENTIAL_NAME"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/upload/v1beta/fileSearchStores/opera-knowledge-base-gls9v6ztisdg:uploadToFileSearchStore?key=YOUR_GEMINI_API_KEY",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Goog-Upload-Protocol",
+              "value": "raw"
+            },
+            {
+              "name": "X-Goog-Upload-Command",
+              "value": "upload, finalize"
+            },
+            {
+              "name": "Content-Type",
+              "value": "={{ ($input.item.binary?.data?.mimeType ?? \"application/octet-stream\").replace(\"text/x-markdown\", \"text/markdown\") }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "id": "retry-upload-001",
+      "name": "Retry Upload File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4672,
+        240
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const opName = $input.first().json.body.name;\nconst apiKey = 'YOUR_GEMINI_API_KEY';\nconst maxRetries = 12;\nfor (let i = 0; i < maxRetries; i++) {\n  const resp = await this.helpers.httpRequest({method: 'GET', url: `https://generativelanguage.googleapis.com/v1beta/${opName}?key=${apiKey}`, json: true});\n  if (resp.done === true) {\n    return [{json: resp}];\n  }\n  await new Promise(r => setTimeout(r, 5000));\n}\nthrow new Error('Processing did not complete after max retries');"
+      },
+      "id": "retry-wait-proc-001",
+      "name": "Retry Wait Processing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4896,
+        160
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "YOUR_RECORD_MANAGER_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Gemini Record Manager",
+          "cachedResultUrl": "/projects/YOUR_PROJECT_ID/datatables/YOUR_RECORD_MANAGER_TABLE_ID"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "storeName": "={{ $json.response.documentName.split('/documents/')[0] }}",
+            "documentName": "={{ $('Emit Retry Failures').item.json.fileName || '' }}",
+            "geminiDocId": "={{ $json.response.documentName.split('/').pop() }}",
+            "mimeType": "={{ $('Emit Retry Failures').item.json.mimeType || '' }}",
+            "market": "={{ $('Emit Retry Failures').item.json.buildMeta?.metadata?.market || 'all' }}",
+            "status": "={{ $('Emit Retry Failures').item.json.buildMeta?.metadata?.status || 'active' }}",
+            "product": "={{ $('Emit Retry Failures').item.json.buildMeta?.metadata?.product || 'general' }}",
+            "driveFileId": "={{ $('Emit Retry Failures').item.json.driveFileId || '' }}",
+            "fileName": "={{ $('Emit Retry Failures').item.json.fileName || '' }}",
+            "filePath": "={{ $('Emit Retry Failures').item.json.path || '' }}",
+            "hash": "={{ $('Emit Retry Failures').item.json.hash || '' }}",
+            "uploadedAt": "={{ $now.toISO() }}",
+            "driveModifiedAt": "={{ $('Emit Retry Failures').item.json.modifiedTime || '' }}",
+            "lastSyncedAt": "={{ $now.toISO() }}",
+            "uploadSource": "Google Drive (retry)",
+            "fileType": "={{ $('Emit Retry Failures').item.json.fileType || '' }}",
+            "category": "={{ $('Emit Retry Failures').item.json.aiMetadata?.category || 'document' }}",
+            "summary": "={{ $('Emit Retry Failures').item.json.aiMetadata?.document_summary || '' }}",
+            "documentType": "={{ $('Emit Retry Failures').item.json.aiMetadata?.document_type || '' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "storeName",
+              "displayName": "storeName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "documentName",
+              "displayName": "documentName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "geminiDocId",
+              "displayName": "geminiDocId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "driveFileId",
+              "displayName": "driveFileId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "fileName",
+              "displayName": "fileName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "filePath",
+              "displayName": "filePath",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "mimeType",
+              "displayName": "mimeType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "fileType",
+              "displayName": "fileType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "hash",
+              "displayName": "hash",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "market",
+              "displayName": "market",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "product",
+              "displayName": "product",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "uploadedAt",
+              "displayName": "uploadedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "lastSyncedAt",
+              "displayName": "lastSyncedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "driveModifiedAt",
+              "displayName": "driveModifiedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "uploadSource",
+              "displayName": "uploadSource",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "documentType",
+              "displayName": "documentType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "retry-add-record-001",
+      "name": "Retry Add Record",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        5120,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst currentFile = $('Emit Retry Failures').item.json;\nconst fileId = currentFile.driveFileId || '';\n\n// Remove from failed list\nstaticData.failedUploads = (staticData.failedUploads || []).filter(f => f.driveFileId !== fileId);\n\n// Update file result to success\nconst results = staticData.fileResults || [];\nconst idx = results.findIndex(r => r.fileId === fileId && r.status === 'failed');\nif (idx >= 0) {\n  results[idx].status = 'success';\n  results[idx].retriedAt = new Date().toISOString();\n  delete results[idx].error;\n}\n\nreturn $input.all();"
+      },
+      "id": "mark-retry-success-001",
+      "name": "Mark Retry Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5344,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst currentFile = $('Emit Retry Failures').item.json;\nconst fileId = currentFile.driveFileId || '';\n\nconst failed = (staticData.failedUploads || []).find(f => f.driveFileId === fileId);\nif (failed) {\n  failed.attempts = (failed.attempts || 1) + 1;\n  const errItem = $input.first();\n  failed.error = (errItem.json.error && errItem.json.error.message) || failed.error || 'Retry failed';\n}\n\nreturn $input.all();"
+      },
+      "id": "mark-retry-failure-001",
+      "name": "Mark Retry Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5120,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nstaticData.retryCycles = (staticData.retryCycles || 0) + 1;\nconst cycle = staticData.retryCycles;\nconst remaining = (staticData.failedUploads || []).length;\n\n// Reset retry counters for next cycle\nstaticData._retryTotal = 0;\nstaticData._retryProcessed = 0;\n\nreturn [{\n  json: {\n    cycle,\n    remainingFailures: remaining,\n    shouldRetry: remaining > 0 && cycle < 3\n  }\n}];"
+      },
+      "id": "check-retry-cycles-001",
+      "name": "Check Retry Cycles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6016,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "retry-check-1",
+              "leftValue": "={{ $json.shouldRetry }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "name": "filter.operator.true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "more-retries-001",
+      "name": "More Retries?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        6240,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst completedAt = new Date().toISOString();\nconst startedAt = staticData.startedAt || completedAt;\nconst durationMs = new Date(completedAt) - new Date(startedAt);\nconst duration = (durationMs / 1000).toFixed(1) + 's';\nconst results = staticData.fileResults || [];\nconst failures = staticData.failedUploads || [];\n\nconst uploaded = results.filter(r => r.status === 'success').length;\nconst skipped = staticData.skippedFiles || 0;\nconst failed = failures.length;\nconst total = staticData.totalFiles || (uploaded + skipped + failed);\nconst status = failed === 0 ? 'success' : uploaded === 0 ? 'failed' : 'partial';\n\nconst output = {\n  runId: staticData.runId || 'unknown',\n  startedAt,\n  completedAt,\n  status,\n  totalFiles: String(total),\n  uploadedFiles: String(uploaded),\n  skippedFiles: String(skipped),\n  failedFiles: String(failed),\n  retryCycles: String(staticData.retryCycles || 0),\n  duration,\n  errors: JSON.stringify(failures.map(f => ({ file: f.fileName, error: f.error, attempts: f.attempts }))),\n  fileDetails: JSON.stringify(results)\n};\n\n// Clean up static data\ndelete staticData.runId;\ndelete staticData.startedAt;\ndelete staticData.fileResults;\ndelete staticData.failedUploads;\ndelete staticData.retryCycles;\ndelete staticData.skippedFiles;\ndelete staticData.totalFiles;\n\nreturn [{ json: output }];"
+      },
+      "id": "finalize-run-log-001",
+      "name": "Finalize Run Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6464,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "YOUR_EXECUTION_LOG_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Pipeline Execution Log",
+          "cachedResultUrl": "/projects/YOUR_PROJECT_ID/datatables/YOUR_EXECUTION_LOG_TABLE_ID"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "runId": "={{ $json.runId }}",
+            "startedAt": "={{ $json.startedAt }}",
+            "completedAt": "={{ $json.completedAt }}",
+            "status": "={{ $json.status }}",
+            "totalFiles": "={{ $json.totalFiles }}",
+            "uploadedFiles": "={{ $json.uploadedFiles }}",
+            "skippedFiles": "={{ $json.skippedFiles }}",
+            "failedFiles": "={{ $json.failedFiles }}",
+            "retryCycles": "={{ $json.retryCycles }}",
+            "duration": "={{ $json.duration }}",
+            "errors": "={{ $json.errors }}",
+            "fileDetails": "={{ $json.fileDetails }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "runId",
+              "displayName": "runId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "startedAt",
+              "displayName": "startedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "completedAt",
+              "displayName": "completedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "totalFiles",
+              "displayName": "totalFiles",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "uploadedFiles",
+              "displayName": "uploadedFiles",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "skippedFiles",
+              "displayName": "skippedFiles",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "failedFiles",
+              "displayName": "failedFiles",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "retryCycles",
+              "displayName": "retryCycles",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "duration",
+              "displayName": "duration",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "errors",
+              "displayName": "errors",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "fileDetails",
+              "displayName": "fileDetails",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "add-exec-log-001",
+      "name": "Add Execution Log",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        6688,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData(\"global\");\nstaticData.processedCount = (staticData.processedCount || 0) + 1;\nconst total = staticData.totalFiles || 0;\nconst isLast = staticData.processedCount >= total;\n\nconst item = $input.first();\nitem.json._isLastItem = isLast;\nreturn [item];"
+      },
+      "id": "check-if-last-001",
+      "name": "Check If Last Item",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2656,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "islast-check-1",
+              "leftValue": "={{ $json._isLastItem }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "name": "filter.operator.true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-last-item-001",
+      "name": "Is Last Item?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2880,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fixed \"Strip Base64 Images\" \u2014 uses n8n binary helpers for filesystem-v2 compatibility\n// Used by both \"Strip Base64 Images\" and \"Strip Base64 Images (Retry)\" nodes\n\nconst items = $input.all();\nconst GEMINI_API_KEY = $('Get Store Config').first().json.geminiApiKey;\nconst GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;\nconst RATE_LIMIT_MS = 3000;\nconst MAX_IMAGES = 30;\nconst MAX_IMAGE_BYTES = 20 * 1024 * 1024; // 20MB\n\nfunction sleep(ms) {\n  return new Promise(resolve => setTimeout(resolve, ms));\n}\n\nfor (let itemIndex = 0; itemIndex < items.length; itemIndex++) {\n  const item = items[itemIndex];\n  try {\n    const binaryData = item.binary?.data;\n    if (!binaryData) continue;\n\n    // Use n8n binary helper to read actual file content (not the filesystem reference string)\n    const buffer = await this.helpers.getBinaryDataBuffer(itemIndex, 'data');\n    let content = buffer.toString('utf-8');\n\n    // Fast path: no images at all\n    if (!content.includes('data:image/')) {\n      item.json.hasImages = false;\n      item.json.imageCount = 0;\n      item.json.imageProcessing = 'none';\n      continue;\n    }\n\n    const lines = content.split('\\n');\n    const imageLines = []; // { index, id, mimeType, base64data }\n\n    for (let i = 0; i < lines.length; i++) {\n      const match = lines[i].match(/^\\[(image\\d+)\\]:\\s*<data:(image\\/[^;]+);base64,([^\\n>]+)>?\\s*$/);\n      if (match) {\n        imageLines.push({ index: i, id: match[1], mimeType: match[2], base64data: match[3] });\n      }\n    }\n\n    const totalImages = imageLines.length;\n\n    if (totalImages === 0) {\n      item.json.hasImages = false;\n      item.json.imageCount = 0;\n      item.json.imageProcessing = 'none';\n      continue;\n    }\n\n    // Cap at MAX_IMAGES\n    const toProcess = imageLines.slice(0, MAX_IMAGES);\n    let described = 0;\n    let failed = 0;\n\n    for (let idx = 0; idx < toProcess.length; idx++) {\n      const img = toProcess[idx];\n\n      // Rate limit: wait before each call (except the first)\n      if (idx > 0) {\n        await sleep(RATE_LIMIT_MS);\n      }\n\n      try {\n        // Check size (~3/4 of base64 length = raw bytes)\n        const approxBytes = Math.ceil(img.base64data.length * 0.75);\n        if (approxBytes > MAX_IMAGE_BYTES) {\n          lines[img.index] = `[${img.id}]: **[Visual Content \u2014 Image ${idx + 1}]:** [Image too large for AI processing \u2014 see original document]`;\n          failed++;\n          continue;\n        }\n\n        const response = await this.helpers.httpRequest({\n          method: 'POST',\n          url: GEMINI_URL,\n          headers: { 'Content-Type': 'application/json' },\n          body: {\n            contents: [{\n              parts: [\n                { inline_data: { mime_type: img.mimeType, data: img.base64data } },\n                { text: \"Describe this image comprehensively for document search indexing. Include: all visible text (transcribe exactly), charts/graphs (axes, data, trends), UI elements, tables (as markdown), diagrams/flowcharts. Be detailed.\" }\n              ]\n            }]\n          },\n          timeout: 30000,\n        });\n\n        const parsed = typeof response === 'string' ? JSON.parse(response) : response;\n        const description = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;\n\n        if (description) {\n          lines[img.index] = `[${img.id}]: **[Visual Content \u2014 Image ${idx + 1}]:** ${description.replace(/\\n/g, ' ')}`;\n          described++;\n        } else {\n          lines[img.index] = `[${img.id}]: **[Visual Content \u2014 Image ${idx + 1}]:** [Screenshot removed \u2014 see original document]`;\n          failed++;\n        }\n      } catch (apiError) {\n        lines[img.index] = `[${img.id}]: **[Visual Content \u2014 Image ${idx + 1}]:** [Screenshot removed \u2014 see original document]`;\n        failed++;\n      }\n    }\n\n    // Handle overflow images beyond MAX_IMAGES\n    for (let idx = MAX_IMAGES; idx < imageLines.length; idx++) {\n      const img = imageLines[idx];\n      lines[img.index] = `[${img.id}]: **[Visual Content \u2014 Image ${idx + 1}]:** [Screenshot removed \u2014 see original document]`;\n      failed++;\n    }\n\n    // Add footer\n    lines.push('');\n    lines.push(`*Document image processing: ${described} of ${totalImages} images described by AI.*`);\n\n    content = lines.join('\\n');\n    const cleanBuffer = Buffer.from(content, 'utf-8');\n\n    // Use n8n binary helper to write back (works with filesystem-v2 storage)\n    item.binary.data = await this.helpers.prepareBinaryData(cleanBuffer, binaryData.fileName, binaryData.mimeType);\n\n    item.json.hasImages = true;\n    item.json.imageCount = totalImages;\n    item.json.imagesDescribed = described;\n    item.json.imagesFailed = failed;\n    item.json.imageProcessing = described > 0 ? 'described' : 'stripped';\n\n  } catch (error) {\n    item.json.imageProcessing = 'error: ' + error.message;\n  }\n}\n\nreturn items;\n"
+      },
+      "id": "2a426b96-d932-4d52-82bf-bcd94f61a279",
+      "name": "Strip Base64 Images",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1728,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fixed \"Strip Base64 Images\" \u2014 uses n8n binary helpers for filesystem-v2 compatibility\n// Used by both \"Strip Base64 Images\" and \"Strip Base64 Images (Retry)\" nodes\n\nconst items = $input.all();\nconst GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY';\nconst GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;\nconst RATE_LIMIT_MS = 3000;\nconst MAX_IMAGES = 30;\nconst MAX_IMAGE_BYTES = 20 * 1024 * 1024; // 20MB\n\nfunction sleep(ms) {\n  return new Promise(resolve => setTimeout(resolve, ms));\n}\n\nfor (let itemIndex = 0; itemIndex < items.length; itemIndex++) {\n  const item = items[itemIndex];\n  try {\n    const binaryData = item.binary?.data;\n    if (!binaryData) continue;\n\n    // Use n8n binary helper to read actual file content (not the filesystem reference string)\n    const buffer = await this.helpers.getBinaryDataBuffer(itemIndex, 'data');\n    let content = buffer.toString('utf-8');\n\n    // Fast path: no images at all\n    if (!content.includes('data:image/')) {\n      item.json.hasImages = false;\n      item.json.imageCount = 0;\n      item.json.imageProcessing = 'none';\n      continue;\n    }\n\n    const lines = content.split('\\n');\n    const imageLines = []; // { index, id, mimeType, base64data }\n\n    for (let i = 0; i < lines.length; i++) {\n      const match = lines[i].match(/^\\[(image\\d+)\\]:\\s*<data:(image\\/[^;]+);base64,([^\\n>]+)>?\\s*$/);\n      if (match) {\n        imageLines.push({ index: i, id: match[1], mimeType: match[2], base64data: match[3] });\n      }\n    }\n\n    const totalImages = imageLines.length;\n\n    if (totalImages === 0) {\n      item.json.hasImages = false;\n      item.json.imageCount = 0;\n      item.json.imageProcessing = 'none';\n      continue;\n    }\n\n    // Cap at MAX_IMAGES\n    const toProcess = imageLines.slice(0, MAX_IMAGES);\n    let described = 0;\n    let failed = 0;\n\n    for (let idx = 0; idx < toProcess.length; idx++) {\n      const img = toProcess[idx];\n\n      // Rate limit: wait before each call (except the first)\n      if (idx > 0) {\n        await sleep(RATE_LIMIT_MS);\n      }\n\n      try {\n        // Check size (~3/4 of base64 length = raw bytes)\n        const approxBytes = Math.ceil(img.base64data.length * 0.75);\n        if (approxBytes > MAX_IMAGE_BYTES) {\n          lines[img.index] = `[${img.id}]: **[Visual Content \u2014 Image ${idx + 1}]:** [Image too large for AI processing \u2014 see original document]`;\n          failed++;\n          continue;\n        }\n\n        const response = await this.helpers.httpRequest({\n          method: 'POST',\n          url: GEMINI_URL,\n          headers: { 'Content-Type': 'application/json' },\n          body: {\n            contents: [{\n              parts: [\n                { inline_data: { mime_type: img.mimeType, data: img.base64data } },\n                { text: \"Describe this image comprehensively for document search indexing. Include: all visible text (transcribe exactly), charts/graphs (axes, data, trends), UI elements, tables (as markdown), diagrams/flowcharts. Be detailed.\" }\n              ]\n            }]\n          },\n          timeout: 30000,\n        });\n\n        const parsed = typeof response === 'string' ? JSON.parse(response) : response;\n        const description = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;\n\n        if (description) {\n          lines[img.index] = `[${img.id}]: **[Visual Content \u2014 Image ${idx + 1}]:** ${description.replace(/\\n/g, ' ')}`;\n          described++;\n        } else {\n          lines[img.index] = `[${img.id}]: **[Visual Content \u2014 Image ${idx + 1}]:** [Screenshot removed \u2014 see original document]`;\n          failed++;\n        }\n      } catch (apiError) {\n        lines[img.index] = `[${img.id}]: **[Visual Content \u2014 Image ${idx + 1}]:** [Screenshot removed \u2014 see original document]`;\n        failed++;\n      }\n    }\n\n    // Handle overflow images beyond MAX_IMAGES\n    for (let idx = MAX_IMAGES; idx < imageLines.length; idx++) {\n      const img = imageLines[idx];\n      lines[img.index] = `[${img.id}]: **[Visual Content \u2014 Image ${idx + 1}]:** [Screenshot removed \u2014 see original document]`;\n      failed++;\n    }\n\n    // Add footer\n    lines.push('');\n    lines.push(`*Document image processing: ${described} of ${totalImages} images described by AI.*`);\n\n    content = lines.join('\\n');\n    const cleanBuffer = Buffer.from(content, 'utf-8');\n\n    // Use n8n binary helper to write back (works with filesystem-v2 storage)\n    item.binary.data = await this.helpers.prepareBinaryData(cleanBuffer, binaryData.fileName, binaryData.mimeType);\n\n    item.json.hasImages = true;\n    item.json.imageCount = totalImages;\n    item.json.imagesDescribed = described;\n    item.json.imagesFailed = failed;\n    item.json.imageProcessing = described > 0 ? 'described' : 'stripped';\n\n  } catch (error) {\n    item.json.imageProcessing = 'error: ' + error.message;\n  }\n}\n\nreturn items;\n"
+      },
+      "id": "ca4db971-ea67-4a1a-bf1d-6b224ca3ff11",
+      "name": "Strip Base64 Images (Retry)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4448,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData(\"global\");\nif (!staticData._retryTotal) staticData._retryTotal = 0;\nstaticData._retryProcessed = (staticData._retryProcessed || 0) + 1;\nconst isLast = staticData._retryProcessed >= staticData._retryTotal;\nconst item = $input.first();\nitem.json._isLastRetry = isLast;\nreturn [item];"
+      },
+      "id": "check-if-last-retry-001",
+      "name": "Check If Last Retry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5568,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "islast-retry-check-1",
+              "leftValue": "={{ $json._isLastRetry }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "name": "filter.operator.true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-last-retry-001",
+      "name": "Is Last Retry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5792,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// FIXED: Separate Files and Folders - v2\n// Uses item flags instead of staticData for routing\nconst items = $input.all();\nconst files = [];\nconst folders = [];\n\nfor (const item of items) {\n  if (item.json.mimeType === 'application/vnd.google-apps.folder') {\n    folders.push(item);\n  } else {\n    files.push(item);\n  }\n}\n\n// Use static data to accumulate files and track folders\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.allFiles) staticData.allFiles = [];\nif (!staticData.pendingFolders) staticData.pendingFolders = [];\n\n// Initialize global folder cache for path resolution\nif (!staticData.folderCache) staticData.folderCache = {};\n\n// Add folders to the global cache for path resolution\nfor (const folder of folders) {\n  staticData.folderCache[folder.json.id] = {\n    name: folder.json.name,\n    parents: folder.json.parents || []\n  };\n}\n\n// Add files to accumulator\nfor (const f of files) {\n  staticData.allFiles.push(f.json);\n}\n\n// Add folders to queue\nfor (const f of folders) {\n  staticData.pendingFolders.push(f.json);\n}\n\nconsole.log(`Found ${files.length} files and ${folders.length} folders`);\nconsole.log(`Queue has ${staticData.pendingFolders.length} folders`);\nconsole.log(`Total collected files: ${staticData.allFiles.length}`);\nconsole.log(`Folder cache size: ${Object.keys(staticData.folderCache).length}`);\n\n// KEY FIX: Return items with __hasFolders flag for downstream IF node\n// This avoids relying on staticData which may have timing issues\nif (folders.length > 0) {\n  // Return folders with flag indicating more processing needed\n  return folders.map(f => ({\n    json: {\n      ...f.json,\n      __hasFolders: true,  // Signal flag for IF condition\n      __totalPendingFolders: staticData.pendingFolders.length\n    }\n  }));\n} else {\n  // No folders found in this batch - check if any in queue from previous iterations\n  if (staticData.pendingFolders.length > 0) {\n    // Emit a signal to continue processing\n    return [{\n      json: {\n        __hasFolders: true,\n        __signal: 'continue',\n        __totalPendingFolders: staticData.pendingFolders.length\n      }\n    }];\n  } else {\n    // Truly done - no more folders anywhere\n    const result = staticData.allFiles.map(f => ({\n      json: {\n        ...f,\n        __hasFolders: false,  // Signal that we're done\n        __signal: 'done'\n      }\n    }));\n    // Clear for next run (but keep folder cache for path resolution)\n    staticData.allFiles = [];\n    staticData.pendingFolders = [];\n    return result;\n  }\n}\n"
+      },
+      "id": "4b4e8160-d5be-486f-b9c0-b54a17a36c6f",
+      "name": "Separate Files and Folders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        1904
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c60cdacd-24ed-464d-b931-467c2f8f0936",
+              "leftValue": "={{ $json.__hasFolders === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dcded539-5003-452c-b703-57b6d5de24f3",
+      "name": "Has Pending Folders?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1984,
+        1904
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get next folder from queue\nconst staticData = $getWorkflowStaticData('global');\n\nif (!staticData.pendingFolders || staticData.pendingFolders.length === 0) {\n  // No more folders - this shouldn't happen normally, but handle it\n  console.log('No more folders to process');\n  return [];\n}\n\nconst nextFolder = staticData.pendingFolders.shift();\nconsole.log(`Processing folder: ${nextFolder.name}`);\nconsole.log(`Remaining folders: ${staticData.pendingFolders.length}`);\n\n// Pass along info about whether more folders exist\nreturn [{\n  json: {\n    ...nextFolder,\n    __remainingFolders: staticData.pendingFolders.length\n  }\n}];"
+      },
+      "id": "b8a92a96-895b-4a6a-93ea-745501d4edbf",
+      "name": "Get Next Folder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        1616
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "resource": "fileFolder",
+        "returnAll": true,
+        "filter": {
+          "folderId": {
+            "mode": "id",
+            "value": "={{ $json.id }}"
+          },
+          "whatToSearch": "all"
+        },
+        "options": {
+          "fields": [
+            "*"
+          ]
+        }
+      },
+      "id": "474fa6c8-386c-4aa1-a4a8-9d57816bfe44",
+      "name": "Search Subfolder",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2432,
+        1616
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_DRIVE_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// FIXED: Process Subfolder Results - v2\n// Returns items with __hasFolders flag for downstream IF node\nconst items = $input.all();\nconst staticData = $getWorkflowStaticData('global');\n\nif (!staticData.pendingFolders) staticData.pendingFolders = [];\nif (!staticData.allFiles) staticData.allFiles = [];\nif (!staticData.folderCache) staticData.folderCache = {};\n\nlet filesCount = 0;\nlet foldersCount = 0;\nlet hadLoopSignal = false;\n\nfor (const item of items) {\n  // Check if this is a loop signal (not a real search result)\n  if (item.json.__loopSignal) {\n    hadLoopSignal = true;\n    console.log(`Loop signal received, remaining folders from signal: ${item.json.__remainingFolders}`);\n    continue;  // Don't process signal as a file/folder\n  }\n\n  // Process real search results\n  if (item.json.mimeType === 'application/vnd.google-apps.folder') {\n    staticData.pendingFolders.push(item.json);\n    // Add to global folder cache for path resolution\n    staticData.folderCache[item.json.id] = {\n      name: item.json.name,\n      parents: item.json.parents || []\n    };\n    foldersCount++;\n  } else {\n    staticData.allFiles.push(item.json);\n    filesCount++;\n  }\n}\n\nconsole.log(`Processed: ${filesCount} files, ${foldersCount} subfolders`);\nconsole.log(`Total pending folders: ${staticData.pendingFolders.length}`);\nconsole.log(`Total files collected: ${staticData.allFiles.length}`);\nconsole.log(`Folder cache size: ${Object.keys(staticData.folderCache).length}`);\n\n// KEY FIX: Return with __hasFolders flag instead of relying on staticData check\nconst hasPending = staticData.pendingFolders.length > 0;\n\nif (hasPending) {\n  // More folders to process - emit signal with flag\n  return [{\n    json: {\n      __hasFolders: true,\n      __signal: 'continue',\n      __totalPendingFolders: staticData.pendingFolders.length\n    }\n  }];\n} else {\n  // No more folders - emit done signal with flag\n  console.log('No more folders to process - emitting done signal');\n  return [{\n    json: {\n      __hasFolders: false,\n      __signal: 'done'\n    }\n  }];\n}\n"
+      },
+      "id": "09e4e445-5526-465c-9fa4-9672d315035a",
+      "name": "Process Subfolder Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        1712
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return all collected files from static data\nconst staticData = $getWorkflowStaticData('global');\nconst allFiles = staticData.allFiles || [];\n\nconsole.log(`Returning ${allFiles.length} total files for processing`);\n\n// Clear static data for next run\nstaticData.allFiles = [];\nstaticData.folderQueue = [];\n\n// Return as n8n items\nreturn allFiles.map(f => ({ json: f }));\n"
+      },
+      "id": "06cab3cf-dd84-4f68-84fa-bda7efadb3e1",
+      "name": "Collect All Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ { __loopSignal: true, __remainingFolders: $json.__remainingFolders } }}",
+        "options": {}
+      },
+      "id": "loop-signal-001",
+      "name": "Loop Signal",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2432,
+        1808
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "combine-search-001",
+      "name": "Combine Search",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        2656,
+        1616
+      ]
+    },
+    {
+      "parameters": {
+        "path": "ingestion-trigger",
+        "options": {}
+      },
+      "id": "webhook-trigger-node-001",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -608,
+        1968
+      ],
+      "webhookId": "ingestion-trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cf1fd17b-6403-4516-9b31-b7a3b097bbc9",
+              "leftValue": "={{ $json.mimeType }}",
+              "rightValue": "video/",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith"
+              }
+            },
+            {
+              "id": "bd144d88-84dc-4e9a-9657-074cf5aa8f61",
+              "leftValue": "={{ $json.mimeType }}",
+              "rightValue": "audio/",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "filter-media-files-001",
+      "name": "Filter Media Files",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3328,
+        896
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nstaticData.skippedFiles = (staticData.skippedFiles || 0) + 1;\n\nlet fileName = 'unknown';\nlet mimeType = 'unknown';\ntry { \n  fileName = $('Loop Over Files').item.json.name || 'unknown';\n  mimeType = $('Loop Over Files').item.json.mimeType || 'unknown';\n} catch(e) {}\n\nif (!staticData.fileResults) staticData.fileResults = [];\nstaticData.fileResults.push({\n  fileName,\n  status: 'skipped',\n  reason: 'media_unsupported',\n  mimeType\n});\n\nreturn $input.all();"
+      },
+      "id": "track-media-skip-001",
+      "name": "Track Media Skip",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3552,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "file-size-check-001",
+              "leftValue": "={{ $json.size }}",
+              "rightValue": 104857600,
+              "operator": {
+                "type": "number",
+                "operation": "smallerEqual"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "check-file-size-001",
+      "name": "Check File Size",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2400,
+        1152
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nstaticData.skippedFiles = (staticData.skippedFiles || 0) + 1;\n\nlet fileName = 'unknown';\nlet mimeType = 'unknown';\nlet fileSize = 0;\nlet maxSize = 104857600;\ntry {\n  fileName = $('Loop Over Files').item.json.name || 'unknown';\n  mimeType = $('Loop Over Files').item.json.mimeType || 'unknown';\n  fileSize = Number($('Loop Over Files').item.json.size || 0);\n  maxSize = $('Get Store Config').item.json.maxFileSizeBytes || 104857600;\n} catch(e) {}\n\nconst fileSizeMB = (fileSize / (1024 * 1024)).toFixed(2);\nconst maxSizeMB = (maxSize / (1024 * 1024)).toFixed(2);\n\nif (!staticData.fileResults) staticData.fileResults = [];\nstaticData.fileResults.push({\n  fileName,\n  status: 'skipped',\n  reason: 'file_too_large',\n  mimeType,\n  fileSize,\n  fileSizeMB: fileSizeMB + ' MB',\n  maxSizeMB: maxSizeMB + ' MB'\n});\n\nconsole.log(`Skipped large file: ${fileName} (${fileSizeMB} MB > ${maxSizeMB} MB threshold)`);\n\nreturn $input.all();"
+      },
+      "id": "track-large-file-skip-001",
+      "name": "Track Large File Skip",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2432,
+        1424
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Store Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Store Config": {
+      "main": [
+        [
+          {
+            "node": "Get Store ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Store ID": {
+      "main": [
+        [
+          {
+            "node": "Store Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Found?": {
+      "main": [
+        [
+          {
+            "node": "Check Lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Lock": {
+      "main": [
+        [
+          {
+            "node": "Check Stale Lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Locked?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Set Lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Lock": {
+      "main": [
+        [
+          {
+            "node": "Init Run Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich File Fields": {
+      "main": [
+        [
+          {
+            "node": "Filter Supported Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Supported Files": {
+      "main": [
+        [
+          {
+            "node": "Count Total Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Files": {
+      "main": [
+        [
+          {
+            "node": "Filter Media Files",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Collect Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by File Type": {
+      "main": [
+        [
+          {
+            "node": "Export Google Doc",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Export Google Doc",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Binary File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export Google Doc": {
+      "main": [
+        [
+          {
+            "node": "Strip Base64 Images",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Track Export/Download Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Binary File": {
+      "main": [
+        [
+          {
+            "node": "Generate Hash",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Track Export/Download Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Hash": {
+      "main": [
+        [
+          {
+            "node": "Search Record Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Record Manager": {
+      "main": [
+        [
+          {
+            "node": "New Doc?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Doc?": {
+      "main": [
+        [
+          {
+            "node": "Check Identical Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Has It Changed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Identical Content": {
+      "main": [
+        [
+          {
+            "node": "Identical Content Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identical Content Exists?": {
+      "main": [
+        [
+          {
+            "node": "Determine Path Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Sync Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has It Changed?": {
+      "main": [
+        [
+          {
+            "node": "Delete Old Gemini Doc",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Sync Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Old Gemini Doc": {
+      "main": [
+        [
+          {
+            "node": "Delete Old Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete Old Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Old Record": {
+      "main": [
+        [
+          {
+            "node": "Determine Path Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Sync Time": {
+      "main": [
+        [
+          {
+            "node": "Do Nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Do Nothing": {
+      "main": [
+        [
+          {
+            "node": "Track Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Determine Path Metadata": {
+      "main": [
+        [
+          {
+            "node": "Reload Binary for Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reload Binary for Extract": {
+      "main": [
+        [
+          {
+            "node": "Extract Text from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text from File": {
+      "main": [
+        [
+          {
+            "node": "Prepare Text for LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Text for LLM": {
+      "main": [
+        [
+          {
+            "node": "Extract Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Metadata": {
+      "main": [
+        [
+          {
+            "node": "Merge AI Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extract Metadata",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge AI Metadata": {
+      "main": [
+        [
+          {
+            "node": "Build Upload Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Upload Metadata": {
+      "main": [
+        [
+          {
+            "node": "Reload Binary for Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Processing": {
+      "main": [
+        [
+          {
+            "node": "Add Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Track Upload Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Record": {
+      "main": [
+        [
+          {
+            "node": "Check If Last Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Extract Metadata",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload File": {
+      "main": [
+        [
+          {
+            "node": "Track Upload Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Track Upload Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reload Binary for Upload": {
+      "main": [
+        [
+          {
+            "node": "Upload File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Stale Lock": {
+      "main": [
+        [
+          {
+            "node": "Is Locked?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init Run Log": {
+      "main": [
+        [
+          {
+            "node": "Search Drive Folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count Total Files": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Track Upload Success": {
+      "main": [
+        [
+          {
+            "node": "Wait for Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Track Upload Failure": {
+      "main": [
+        [
+          {
+            "node": "Check If Last Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Track Export/Download Failure": {
+      "main": [
+        [
+          {
+            "node": "Check If Last Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Track Skip": {
+      "main": [
+        [
+          {
+            "node": "Check If Last Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Results": {
+      "main": [
+        [
+          {
+            "node": "Has Failures?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Failures?": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Finalize Run Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Retry": {
+      "main": [
+        [
+          {
+            "node": "Emit Retry Failures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Emit Retry Failures": {
+      "main": [
+        [
+          {
+            "node": "Re-Export for Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-Export for Retry": {
+      "main": [
+        [
+          {
+            "node": "Strip Base64 Images (Retry)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Retry Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Upload File": {
+      "main": [
+        [
+          {
+            "node": "Retry Wait Processing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Retry Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Wait Processing": {
+      "main": [
+        [
+          {
+            "node": "Retry Add Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Retry Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Add Record": {
+      "main": [
+        [
+          {
+            "node": "Mark Retry Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Retry Success": {
+      "main": [
+        [
+          {
+            "node": "Check If Last Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Retry Failure": {
+      "main": [
+        [
+          {
+            "node": "Check If Last Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Retry Cycles": {
+      "main": [
+        [
+          {
+            "node": "More Retries?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "More Retries?": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Finalize Run Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Run Log": {
+      "main": [
+        [
+          {
+            "node": "Add Execution Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Execution Log": {
+      "main": [
+        [
+          {
+            "node": "Clear Lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Last Item": {
+      "main": [
+        [
+          {
+            "node": "Is Last Item?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Last Item?": {
+      "main": [
+        [
+          {
+            "node": "Collect Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Files",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Strip Base64 Images": {
+      "main": [
+        [
+          {
+            "node": "Generate Hash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Strip Base64 Images (Retry)": {
+      "main": [
+        [
+          {
+            "node": "Retry Upload File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Last Retry": {
+      "main": [
+        [
+          {
+            "node": "Is Last Retry?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Last Retry?": {
+      "main": [
+        [
+          {
+            "node": "Check Retry Cycles",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Search Drive Folder": {
+      "main": [
+        [
+          {
+            "node": "Separate Files and Folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separate Files and Folders": {
+      "main": [
+        [
+          {
+            "node": "Has Pending Folders?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Pending Folders?": {
+      "main": [
+        [
+          {
+            "node": "Get Next Folder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Collect All Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Next Folder": {
+      "main": [
+        [
+          {
+            "node": "Search Subfolder",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loop Signal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Subfolder": {
+      "main": [
+        [
+          {
+            "node": "Combine Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Subfolder Results": {
+      "main": [
+        [
+          {
+            "node": "Has Pending Folders?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect All Files": {
+      "main": [
+        [
+          {
+            "node": "Enrich File Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Signal": {
+      "main": [
+        [
+          {
+            "node": "Combine Search",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combine Search": {
+      "main": [
+        [
+          {
+            "node": "Process Subfolder Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Store Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Media Files": {
+      "main": [
+        [
+          {
+            "node": "Track Media Skip",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route by File Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Track Media Skip": {
+      "main": [
+        [
+          {
+            "node": "Check If Last Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check File Size": {
+      "main": [
+        [
+          {
+            "node": "Route by File Type",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Track Large File Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Track Large File Skip": {
+      "main": [
+        [
+          {
+            "node": "Check If Last Item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": {},
+  "meta": null,
+  "pinData": {},
+  "versionId": "1451de75-5979-44ab-b43a-5359b0e964ec",
+  "activeVersionId": null,
+  "versionCounter": 2,
+  "triggerCount": 0,
+  "tags": [],
+  "activeVersion": null
+}

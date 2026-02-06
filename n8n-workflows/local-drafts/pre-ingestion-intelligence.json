@@ -1,0 +1,1695 @@
+{
+  "name": "Opera KB - Pre-Ingestion Intelligence",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pre-ingestion/start",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        400
+      ],
+      "webhookId": "pre-ingestion-start"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "config-drive-folder",
+              "name": "driveFolderId",
+              "value": "1zyFOFMc0WHeeLJh2fujd0B-9LtCB8PfJ",
+              "type": "string"
+            },
+            {
+              "id": "config-staging-folder",
+              "name": "stagingFolderId",
+              "value": "1ypG267OJqOXBWV31t1yl7dkFJyBZcHKn",
+              "type": "string"
+            },
+            {
+              "id": "config-model",
+              "name": "geminiModel",
+              "value": "gemini-2.0-flash",
+              "type": "string"
+            },
+            {
+              "id": "config-batch-size",
+              "name": "batchSize",
+              "value": 5,
+              "type": "number"
+            },
+            {
+              "id": "config-delay-ms",
+              "name": "delayBetweenFiles",
+              "value": 2000,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-config",
+      "name": "Get Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        460,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "listSearch",
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.driveFolderId }}"
+        },
+        "returnAll": true,
+        "options": {
+          "driveId": {
+            "__rl": true,
+            "mode": "list",
+            "value": ""
+          }
+        }
+      },
+      "id": "node-list-drive-files",
+      "name": "List All Drive Files",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        680,
+        400
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter out non-indexable files and prepare file list\nconst items = $input.all();\nconst config = $('Get Config').first().json;\n\n// MIME types to SKIP (non-indexable)\nconst skipMimeTypes = [\n  'video/mp4',\n  'video/quicktime',\n  'video/x-msvideo',\n  'video/webm',\n  'image/png',\n  'image/jpeg',\n  'image/gif',\n  'image/webp',\n  'application/zip',\n  'application/x-zip-compressed',\n  'application/x-rar-compressed'\n];\n\n// File extensions to skip\nconst skipExtensions = ['.mp4', '.mov', '.avi', '.webm', '.png', '.jpg', '.jpeg', '.gif', '.zip', '.rar'];\n\nconst indexableFiles = [];\nconst skippedFiles = [];\n\nfor (const item of items) {\n  const mimeType = item.json.mimeType || '';\n  const fileName = item.json.name || '';\n  const fileExt = fileName.toLowerCase().slice(fileName.lastIndexOf('.'));\n  \n  // Check if should skip\n  const shouldSkip = skipMimeTypes.includes(mimeType) || \n                     skipExtensions.includes(fileExt) ||\n                     mimeType.startsWith('video/') ||\n                     (mimeType.startsWith('image/') && !mimeType.includes('pdf'));\n  \n  if (shouldSkip) {\n    skippedFiles.push({\n      name: fileName,\n      mimeType: mimeType,\n      reason: 'Non-indexable file type'\n    });\n    continue;\n  }\n  \n  // Determine file category for processing\n  let fileCategory = 'unknown';\n  if (mimeType === 'application/pdf') {\n    fileCategory = 'pdf';\n  } else if (mimeType === 'application/vnd.google-apps.document') {\n    fileCategory = 'google_doc';\n  } else if (mimeType === 'application/vnd.google-apps.spreadsheet') {\n    fileCategory = 'google_sheet';\n  } else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||\n             mimeType === 'application/msword') {\n    fileCategory = 'word_doc';\n  } else if (mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||\n             mimeType === 'application/vnd.ms-excel') {\n    fileCategory = 'excel';\n  } else if (mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||\n             mimeType === 'application/vnd.ms-powerpoint') {\n    fileCategory = 'powerpoint';\n  }\n  \n  indexableFiles.push({\n    id: item.json.id,\n    name: fileName,\n    mimeType: mimeType,\n    fileCategory: fileCategory,\n    webViewLink: item.json.webViewLink || '',\n    modifiedTime: item.json.modifiedTime || '',\n    parents: item.json.parents || [],\n    // Pass config forward\n    config: config\n  });\n}\n\n// Return summary first, then files\nreturn [{\n  json: {\n    summary: {\n      totalFiles: items.length,\n      indexableCount: indexableFiles.length,\n      skippedCount: skippedFiles.length,\n      skippedFiles: skippedFiles\n    },\n    files: indexableFiles,\n    config: config\n  }\n}];"
+      },
+      "id": "node-filter-files",
+      "name": "Filter Non-Indexable",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split files array into individual items for batch processing\nconst input = $input.first().json;\nconst files = input.files || [];\nconst config = input.config;\nconst summary = input.summary;\n\nreturn files.map(file => ({\n  json: {\n    ...file,\n    processingBatch: summary,\n    config: config\n  }\n}));"
+      },
+      "id": "node-split-files",
+      "name": "Split Files Array",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "node-batch-processor",
+      "name": "Process One at a Time",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1340,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "id": "node-rate-limit-delay",
+      "name": "Rate Limit Delay",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1560,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.google-apps.document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Google Doc"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.google-apps.spreadsheet",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Google Sheet"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/msword",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Word Doc"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.ms-excel",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Excel"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.ms-powerpoint",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "PowerPoint"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "PDF"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "node-route-by-type",
+      "name": "Route by File Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1780,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.id }}/export?mimeType=text/plain",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "node-export-gdoc-text",
+      "name": "Export GDoc as Text",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2020,
+        120
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.id }}/export?mimeType=text/csv",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "node-export-gsheet-text",
+      "name": "Export GSheet as CSV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2020,
+        280
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {}
+      },
+      "id": "node-download-word",
+      "name": "Download Word Doc",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2020,
+        440
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {}
+      },
+      "id": "node-download-excel",
+      "name": "Download Excel",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2020,
+        600
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {}
+      },
+      "id": "node-download-ppt",
+      "name": "Download PowerPoint",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2020,
+        760
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {}
+      },
+      "id": "node-download-pdf",
+      "name": "Download PDF",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2020,
+        920
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare content for Gemini analysis\nconst items = $input.all();\n\nfor (const item of items) {\n  // Get text content from appropriate source\n  let textContent = '';\n  let contentSource = 'unknown';\n  \n  // Check if we have text response (from Google Docs/Sheets export)\n  if (typeof item.json.data === 'string') {\n    textContent = item.json.data;\n    contentSource = 'text_export';\n  } else if (item.json.body) {\n    textContent = item.json.body;\n    contentSource = 'text_export';\n  }\n  \n  // For binary files, we'll analyze metadata only\n  if (item.binary && item.binary.data) {\n    contentSource = 'binary_file';\n    // Get first 5000 chars if text-based binary\n    try {\n      const buffer = await this.helpers.getBinaryDataBuffer(item, 'data');\n      const text = buffer.toString('utf8').slice(0, 5000);\n      // Check if it looks like text\n      if (text.match(/^[\\x20-\\x7E\\s\\n\\r\\t]+$/)) {\n        textContent = text;\n      }\n    } catch (e) {\n      // Binary file, analyze by name/type only\n    }\n  }\n  \n  // Store original item data\n  const originalData = $('Rate Limit Delay').first().json;\n  \n  item.json = {\n    fileId: originalData.id,\n    fileName: originalData.name,\n    filePath: originalData.webViewLink || '',\n    mimeType: originalData.mimeType,\n    fileCategory: originalData.fileCategory,\n    textContent: textContent.slice(0, 10000), // Limit to 10k chars for analysis\n    contentSource: contentSource,\n    config: originalData.config\n  };\n}\n\nreturn items;"
+      },
+      "id": "node-prepare-for-analysis",
+      "name": "Prepare for Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2260,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"You are an intelligent document analysis system for Opera's knowledge base.\\nAnalyze this document to determine the optimal format for RAG upload and extract rich metadata.\\n\\n=== DOCUMENT INFO ===\\nFilename: {{ $json.fileName }}\\nPath: {{ $json.filePath }}\\nMIME Type: {{ $json.mimeType }}\\nFile Category: {{ $json.fileCategory }}\\n\\n=== DOCUMENT CONTENT PREVIEW ===\\n{{ $json.textContent.slice(0, 5000) }}\\n\\n=== ANALYSIS TASKS ===\\n\\n1. FORMAT EVALUATION\\nDetermine if this document should be converted to PDF (for visual content) or Markdown (for text with hyperlinks).\\n\\nVisual indicators -> PDF:\\n- Charts, diagrams, flowcharts, process maps\\n- Complex table layouts that require visual rendering\\n- Screenshots or embedded images critical for understanding\\n- Spreadsheets used as visual tools (not data)\\n\\nText indicators -> Markdown:\\n- Primarily text content\\n- Many important hyperlinks that users will need to click\\n- Simple formatting (headings, lists)\\n\\nIf uncertain, default to PDF (safer for visual content).\\n\\n2. HYPERLINK EXTRACTION\\nFind ALL hyperlinks in the document. For each:\\n- URL (full address)\\n- Anchor text (clickable text)\\n- Context (what is this link for?)\\n- Importance: critical (user needs to click) or supplementary (reference only)\\n\\n3. METADATA EXTRACTION\\nCRITICAL: The filename and path are often the MOST RELIABLE indicators of market.\\n- BR or BRAZIL in filename -> market: br\\n- DE or GERMAN -> market: de\\n- EN or ENGLISH -> market: en\\n- TR or TURK -> market: tr\\n- FR or FRANCE -> market: fr\\n- Multiple markets or none -> market: all\\n\\nProducts:\\n- Desktop, Browser, R2, R3 -> desktop\\n- Mobile, Android, iOS, OFA, OFI -> mobile\\n- Air -> air\\n- Neon -> neon\\n- GX -> gx\\n- Spotify -> spotify\\n- General guidelines -> general\\n\\nSummary requirements:\\n- 2-3 sentences about WHAT the document contains\\n- Mention specific campaigns, dates, requirements\\n- DO NOT describe file format or XML structure\\n\\n4. ENTITY EXTRACTION\\n- Campaign names mentioned\\n- Platforms (TikTok, Instagram, YouTube, etc.)\\n- Important dates (launch dates, deadlines, quarters)\\n\\nReturn a JSON object with this structure (ONLY JSON, no markdown):\\n{\\n  \\\"format_evaluation\\\": {\\n    \\\"visual_density\\\": \\\"high|medium|low\\\",\\n    \\\"contains_diagrams\\\": boolean,\\n    \\\"contains_hyperlinks\\\": boolean,\\n    \\\"recommended_format\\\": \\\"PDF|MARKDOWN\\\",\\n    \\\"format_reason\\\": \\\"string\\\"\\n  },\\n  \\\"hyperlinks\\\": [{\\\"url\\\": \\\"\\\", \\\"anchor_text\\\": \\\"\\\", \\\"importance\\\": \\\"critical|supplementary\\\"}],\\n  \\\"metadata\\\": {\\n    \\\"market\\\": \\\"br|de|en|tr|fr|all\\\",\\n    \\\"product\\\": \\\"desktop|mobile|air|neon|spotify|general\\\",\\n    \\\"document_type\\\": \\\"brief|guidelines|process|faq|report\\\",\\n    \\\"summary\\\": \\\"2-3 rich sentences\\\",\\n    \\\"key_topics\\\": [\\\"array\\\"]\\n  },\\n  \\\"entities\\\": {\\n    \\\"campaigns\\\": [],\\n    \\\"platforms\\\": [],\\n    \\\"dates\\\": []\\n  }\\n}\"\n    }]\n  }],\n  \"generationConfig\": {\n    \"temperature\": 0.1,\n    \"topP\": 0.95,\n    \"maxOutputTokens\": 4096,\n    \"responseMimeType\": \"application/json\"\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "node-gemini-analyzer",
+      "name": "Gemini Document Analyzer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2500,
+        400
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_GEMINI_CREDENTIAL_ID",
+          "name": "YOUR_GEMINI_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Gemini response and merge with file data\nconst items = $input.all();\n\nfor (const item of items) {\n  const fileData = $('Prepare for Analysis').first().json;\n  \n  // Parse Gemini response\n  let analysis = {};\n  try {\n    const geminiResponse = item.json;\n    if (geminiResponse.candidates && geminiResponse.candidates[0]) {\n      const content = geminiResponse.candidates[0].content;\n      if (content && content.parts && content.parts[0]) {\n        const text = content.parts[0].text;\n        // Try to parse as JSON\n        analysis = JSON.parse(text);\n      }\n    }\n  } catch (e) {\n    // Default analysis if parsing fails\n    analysis = {\n      format_evaluation: {\n        visual_density: 'medium',\n        contains_diagrams: false,\n        contains_hyperlinks: false,\n        recommended_format: 'PDF',\n        format_reason: 'Default to PDF due to analysis error: ' + e.message\n      },\n      hyperlinks: [],\n      metadata: {\n        market: 'all',\n        product: 'general',\n        document_type: 'document',\n        summary: 'Document analysis failed',\n        key_topics: []\n      },\n      entities: {\n        campaigns: [],\n        platforms: [],\n        dates: []\n      }\n    };\n  }\n  \n  // Special handling for Google Sheets and Excel - ALWAYS PDF (visual flowcharts)\n  if (fileData.fileCategory === 'google_sheet' || fileData.fileCategory === 'excel') {\n    analysis.format_evaluation.recommended_format = 'PDF';\n    analysis.format_evaluation.format_reason = 'Spreadsheet files are visual flowcharts - always export as PDF';\n  }\n  \n  // PowerPoint - ALWAYS PDF\n  if (fileData.fileCategory === 'powerpoint') {\n    analysis.format_evaluation.recommended_format = 'PDF';\n    analysis.format_evaluation.format_reason = 'PowerPoint presentations always export as PDF';\n  }\n  \n  item.json = {\n    fileId: fileData.fileId,\n    fileName: fileData.fileName,\n    filePath: fileData.filePath,\n    mimeType: fileData.mimeType,\n    fileCategory: fileData.fileCategory,\n    config: fileData.config,\n    analysis: analysis,\n    recommendedFormat: analysis.format_evaluation.recommended_format,\n    metadata: analysis.metadata,\n    hyperlinks: analysis.hyperlinks,\n    entities: analysis.entities\n  };\n}\n\nreturn items;"
+      },
+      "id": "node-parse-analysis",
+      "name": "Parse Analysis Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2720,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.recommendedFormat }}",
+                    "rightValue": "MARKDOWN",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Markdown Path"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.recommendedFormat }}",
+                    "rightValue": "PDF",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "PDF Path"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "node-route-by-format",
+      "name": "Route by Format",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2940,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.google-apps.document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "GDoc"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/msword",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Word"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "node-markdown-type-router",
+      "name": "Markdown Type Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        3180,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.fileId }}/export?mimeType=text/markdown",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "node-export-gdoc-md",
+      "name": "Export GDoc to MD",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3420,
+        80
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.fileId }}"
+        },
+        "options": {}
+      },
+      "id": "node-download-word-md",
+      "name": "Download Word for MD",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3420,
+        240
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.google-apps.document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "GDoc"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.google-apps.spreadsheet",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "GSheet"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/msword",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Word"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.ms-excel",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Excel"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.ms-powerpoint",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "PowerPoint"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": ""
+                },
+                "combinator": "or",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "PDF"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "node-pdf-type-router",
+      "name": "PDF Type Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        3180,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.fileId }}/export?mimeType=application/pdf",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "node-export-gdoc-pdf",
+      "name": "Export GDoc to PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3420,
+        440
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.fileId }}/export?mimeType=application/pdf",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "node-export-gsheet-pdf",
+      "name": "Export GSheet to PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3420,
+        560
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.fileId }}"
+        },
+        "options": {}
+      },
+      "id": "node-download-word-pdf",
+      "name": "Download Word for PDF",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3420,
+        680
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.fileId }}"
+        },
+        "options": {}
+      },
+      "id": "node-download-excel-pdf",
+      "name": "Download Excel for PDF",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3420,
+        800
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.fileId }}"
+        },
+        "options": {}
+      },
+      "id": "node-download-ppt-pdf",
+      "name": "Download PPT for PDF",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3420,
+        920
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.fileId }}"
+        },
+        "options": {}
+      },
+      "id": "node-download-pdf-passthrough",
+      "name": "Download PDF Direct",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3420,
+        1040
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "mergeByPosition"
+      },
+      "id": "node-merge-md-exports",
+      "name": "Merge MD Exports",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        3660,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "mergeByPosition"
+      },
+      "id": "node-merge-pdf-exports",
+      "name": "Merge PDF Exports",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        3660,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare staging output with metadata\nconst items = $input.all();\n\nfor (const item of items) {\n  // Get analysis data from earlier in the flow\n  const analysisData = $('Parse Analysis Result').first().json;\n  \n  // Determine output filename\n  const originalName = analysisData.fileName;\n  const baseName = originalName.replace(/\\.[^/.]+$/, '');\n  const exportFormat = analysisData.recommendedFormat === 'MARKDOWN' ? 'md' : 'pdf';\n  const outputFileName = `${baseName}.${exportFormat}`;\n  \n  // Build metadata JSON filename\n  const metadataFileName = `${baseName}.metadata.json`;\n  \n  // Prepare metadata content\n  const metadataContent = {\n    originalFile: {\n      id: analysisData.fileId,\n      name: originalName,\n      mimeType: analysisData.mimeType,\n      category: analysisData.fileCategory\n    },\n    exportFormat: exportFormat,\n    analysis: analysisData.analysis,\n    metadata: analysisData.metadata,\n    hyperlinks: analysisData.hyperlinks,\n    entities: analysisData.entities,\n    processedAt: new Date().toISOString()\n  };\n  \n  item.json = {\n    ...item.json,\n    stagingOutput: {\n      fileName: outputFileName,\n      metadataFileName: metadataFileName,\n      metadataContent: metadataContent,\n      exportFormat: exportFormat\n    },\n    originalAnalysis: analysisData\n  };\n}\n\nreturn items;"
+      },
+      "id": "node-prepare-staging",
+      "name": "Prepare Staging Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log processing result and prepare summary\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const staging = item.json.stagingOutput || {};\n  const analysis = item.json.originalAnalysis || {};\n  \n  results.push({\n    json: {\n      status: 'processed',\n      fileId: analysis.fileId,\n      originalFileName: analysis.fileName,\n      outputFileName: staging.fileName,\n      exportFormat: staging.exportFormat,\n      metadata: analysis.metadata,\n      hyperlinksFound: (analysis.hyperlinks || []).length,\n      campaignsFound: (analysis.entities?.campaigns || []).length,\n      formatReason: analysis.analysis?.format_evaluation?.format_reason || 'N/A',\n      processedAt: new Date().toISOString()\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "node-log-result",
+      "name": "Log Processing Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4140,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "loopScoped": false
+      },
+      "id": "node-loop-done",
+      "name": "Loop Done Check",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        4360,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all processing results\nconst allResults = $('Log Processing Result').all();\n\nconst summary = {\n  totalProcessed: allResults.length,\n  byFormat: {\n    pdf: allResults.filter(r => r.json.exportFormat === 'pdf').length,\n    markdown: allResults.filter(r => r.json.exportFormat === 'md').length\n  },\n  byMarket: {},\n  byProduct: {},\n  files: allResults.map(r => ({\n    fileName: r.json.originalFileName,\n    outputFileName: r.json.outputFileName,\n    format: r.json.exportFormat,\n    market: r.json.metadata?.market,\n    product: r.json.metadata?.product,\n    hyperlinks: r.json.hyperlinksFound\n  }))\n};\n\n// Count by market\nfor (const result of allResults) {\n  const market = result.json.metadata?.market || 'unknown';\n  summary.byMarket[market] = (summary.byMarket[market] || 0) + 1;\n}\n\n// Count by product\nfor (const result of allResults) {\n  const product = result.json.metadata?.product || 'unknown';\n  summary.byProduct[product] = (summary.byProduct[product] || 0) + 1;\n}\n\nreturn [{ json: summary }];"
+      },
+      "id": "node-aggregate-results",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4580,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {}
+      },
+      "id": "node-respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        4800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"error\": true, \"message\": \"No indexable files found in folder\", \"skipped\": $('Filter Non-Indexable').first().json.summary } }}",
+        "options": {}
+      },
+      "id": "node-respond-no-files",
+      "name": "Respond No Files",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1340,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.summary.indexableCount }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-has-files",
+      "name": "Has Indexable Files?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Config": {
+      "main": [
+        [
+          {
+            "node": "List All Drive Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List All Drive Files": {
+      "main": [
+        [
+          {
+            "node": "Filter Non-Indexable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Non-Indexable": {
+      "main": [
+        [
+          {
+            "node": "Has Indexable Files?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Indexable Files?": {
+      "main": [
+        [
+          {
+            "node": "Split Files Array",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond No Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Files Array": {
+      "main": [
+        [
+          {
+            "node": "Process One at a Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process One at a Time": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Delay",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Delay": {
+      "main": [
+        [
+          {
+            "node": "Route by File Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by File Type": {
+      "main": [
+        [
+          {
+            "node": "Export GDoc as Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Export GSheet as CSV",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Word Doc",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Excel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download PowerPoint",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare for Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export GDoc as Text": {
+      "main": [
+        [
+          {
+            "node": "Prepare for Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export GSheet as CSV": {
+      "main": [
+        [
+          {
+            "node": "Prepare for Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Word Doc": {
+      "main": [
+        [
+          {
+            "node": "Prepare for Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Excel": {
+      "main": [
+        [
+          {
+            "node": "Prepare for Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download PowerPoint": {
+      "main": [
+        [
+          {
+            "node": "Prepare for Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download PDF": {
+      "main": [
+        [
+          {
+            "node": "Prepare for Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare for Analysis": {
+      "main": [
+        [
+          {
+            "node": "Gemini Document Analyzer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Document Analyzer": {
+      "main": [
+        [
+          {
+            "node": "Parse Analysis Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Analysis Result": {
+      "main": [
+        [
+          {
+            "node": "Route by Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Format": {
+      "main": [
+        [
+          {
+            "node": "Markdown Type Router",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PDF Type Router",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PDF Type Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Markdown Type Router": {
+      "main": [
+        [
+          {
+            "node": "Export GDoc to MD",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Word for MD",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Word for MD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export GDoc to MD": {
+      "main": [
+        [
+          {
+            "node": "Merge MD Exports",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Word for MD": {
+      "main": [
+        [
+          {
+            "node": "Merge MD Exports",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDF Type Router": {
+      "main": [
+        [
+          {
+            "node": "Export GDoc to PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Export GSheet to PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Word for PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Excel for PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download PPT for PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download PDF Direct",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download PDF Direct",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export GDoc to PDF": {
+      "main": [
+        [
+          {
+            "node": "Merge PDF Exports",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export GSheet to PDF": {
+      "main": [
+        [
+          {
+            "node": "Merge PDF Exports",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Word for PDF": {
+      "main": [
+        [
+          {
+            "node": "Merge PDF Exports",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Excel for PDF": {
+      "main": [
+        [
+          {
+            "node": "Merge PDF Exports",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download PPT for PDF": {
+      "main": [
+        [
+          {
+            "node": "Merge PDF Exports",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download PDF Direct": {
+      "main": [
+        [
+          {
+            "node": "Merge PDF Exports",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge MD Exports": {
+      "main": [
+        [
+          {
+            "node": "Prepare Staging Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge PDF Exports": {
+      "main": [
+        [
+          {
+            "node": "Prepare Staging Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Staging Output": {
+      "main": [
+        [
+          {
+            "node": "Log Processing Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Processing Result": {
+      "main": [
+        [
+          {
+            "node": "Process One at a Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "tags": []
+}

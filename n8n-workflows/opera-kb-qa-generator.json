@@ -1,0 +1,650 @@
+{
+  "updatedAt": "2026-02-05T09:40:20.659Z",
+  "createdAt": "2026-02-05T09:40:20.659Z",
+  "id": "e1jjhajstXTzdkVH",
+  "name": "Opera KB - QA Generator",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qa/generate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        320
+      ],
+      "webhookId": "qa-generate-webhook"
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/fileSearchStores/opera-knowledge-base-gls9v6ztisdg/documents",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "node-list-gemini-docs",
+      "name": "List Gemini Store Docs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        320
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_GEMINI_CREDENTIAL_ID",
+          "name": "YOUR_GEMINI_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract document list from Gemini response\nconst items = $input.all();\nconst documents = items[0].json.documents || [];\n\nif (documents.length === 0) {\n  return [{ json: { error: 'No documents found in Gemini store', count: 0 } }];\n}\n\n// Map to simplified format\nconst docList = documents.map((doc, idx) => ({\n  docId: doc.name,\n  displayName: doc.displayName || `Document ${idx + 1}`,\n  state: doc.state,\n  createTime: doc.createTime,\n  updateTime: doc.updateTime,\n  metadata: doc.customMetadata || []\n}));\n\nconsole.log(`Found ${docList.length} documents in Gemini store`);\nreturn docList.map(d => ({ json: d }));"
+      },
+      "id": "node-extract-docs",
+      "name": "Extract Documents",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "has-documents",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "no-error",
+              "leftValue": "={{ $input.first().json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-check-has-docs",
+      "name": "Has Documents?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": \"No documents found in Gemini knowledge base store\" } }}",
+        "options": {}
+      },
+      "id": "node-respond-no-docs",
+      "name": "Respond No Docs",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare document summary for QA generation\nconst items = $input.all();\nconst totalDocs = items.length;\n\n// Group by metadata if available\nconst docSummary = items.map(item => {\n  const meta = item.json.metadata || [];\n  const market = meta.find(m => m.key === 'market')?.stringValue || 'unknown';\n  const product = meta.find(m => m.key === 'product')?.stringValue || 'unknown';\n  const category = meta.find(m => m.key === 'category')?.stringValue || 'document';\n  \n  return {\n    name: item.json.displayName,\n    market: market,\n    product: product,\n    category: category\n  };\n});\n\n// Count by market and product\nconst marketCounts = {};\nconst productCounts = {};\ndocSummary.forEach(doc => {\n  marketCounts[doc.market] = (marketCounts[doc.market] || 0) + 1;\n  productCounts[doc.product] = (productCounts[doc.product] || 0) + 1;\n});\n\nreturn [{\n  json: {\n    totalDocuments: totalDocs,\n    documents: docSummary,\n    marketDistribution: marketCounts,\n    productDistribution: productCounts,\n    batchSize: 15,\n    totalBatches: Math.ceil(totalDocs / 15)\n  }\n}];"
+      },
+      "id": "node-prepare-context",
+      "name": "Prepare Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Create batch prompts for QA generation\nconst context = $input.first().json;\nconst docs = context.documents;\nconst batchSize = context.batchSize;\nconst batches = [];\n\nfor (let i = 0; i < docs.length; i += batchSize) {\n  const batchDocs = docs.slice(i, i + batchSize);\n  const batchNumber = Math.floor(i / batchSize) + 1;\n  \n  batches.push({\n    batchNumber: batchNumber,\n    totalBatches: context.totalBatches,\n    documents: batchDocs,\n    docNames: batchDocs.map(d => d.name).join(', ')\n  });\n}\n\nreturn batches.map(b => ({ json: b }));"
+      },
+      "id": "node-create-batches",
+      "name": "Create Batches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "node-process-batches",
+      "name": "Process Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1680,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"contents\": [{\n    \"role\": \"user\",\n    \"parts\": [{\n      \"text\": \"You are a QA engineer testing a RAG knowledge base for Opera browser marketing.\\n\\n=== DOCUMENTS IN BATCH \" + $json.batchNumber + \" of \" + $json.totalBatches + \" ===\\n\" + $json.documents.map(d => \"- \" + d.name + \" (Market: \" + d.market + \", Product: \" + d.product + \")\").join(\"\\n\") + \"\\n\\n=== TASK ===\\nGenerate 25 diverse questions that test whether the RAG system can accurately retrieve and answer queries about these documents.\\n\\nQuestion Distribution:\\n- 40% Factual (specific details, requirements, dates)\\n- 30% Procedural (how to, what's the process)\\n- 20% Comparative (difference between X and Y)\\n- 10% Edge cases (what if, exceptions)\\n\\nRequirements:\\n1. Cover ALL markets mentioned (BR, DE, EN, TR, FR)\\n2. Cover ALL products mentioned (Desktop, Mobile, Air, Neon, etc.)\\n3. Include questions that require information from multiple documents\\n4. Include questions about specific campaigns, dates, requirements\\n5. Include questions that test hyperlink-related info (if preserved in metadata)\\n\\nFor each question, provide:\\n- The question itself\\n- Expected answer (based on document names/metadata - be concise)\\n- Which document(s) should be cited\\n- Category: factual/procedural/comparative/edge\\n- Difficulty: easy/medium/hard\\n\\nOutput format: JSON object with questions array\\n{\\n  \\\"questions\\\": [\\n    {\\n      \\\"id\\\": 1,\\n      \\\"question\\\": \\\"What are the minimum subscriber requirements for Opera YouTube influencers?\\\",\\n      \\\"expected_answer\\\": \\\"YouTube 50K+ subscribers required\\\",\\n      \\\"category\\\": \\\"factual\\\",\\n      \\\"market\\\": \\\"all\\\",\\n      \\\"product\\\": \\\"general\\\",\\n      \\\"source_document\\\": \\\"Channel requirements Opera\\\",\\n      \\\"difficulty\\\": \\\"easy\\\"\\n    }\\n  ]\\n}\\n\\nONLY output valid JSON. No markdown code blocks, no explanations.\"\n    }]\n  }],\n  \"generationConfig\": {\n    \"temperature\": 0.7,\n    \"maxOutputTokens\": 8192,\n    \"responseMimeType\": \"application/json\"\n  }\n} }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "id": "node-generate-qa",
+      "name": "Generate QA Questions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        320
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_GEMINI_CREDENTIAL_ID",
+          "name": "YOUR_GEMINI_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Gemini response and extract questions\nconst items = $input.all();\nconst batchInfo = $('Process Batches').first().json;\nconst allQuestions = [];\n\nfor (const item of items) {\n  try {\n    // Extract text from Gemini response\n    let responseText = '';\n    if (item.json.candidates && item.json.candidates[0]) {\n      responseText = item.json.candidates[0].content?.parts?.[0]?.text || '{\"questions\": []}';\n    } else {\n      responseText = '{\"questions\": []}';\n    }\n    \n    // Parse JSON (handle potential markdown code blocks)\n    let cleanJson = responseText.trim();\n    if (cleanJson.startsWith('```json')) {\n      cleanJson = cleanJson.replace(/^```json\\s*/, '').replace(/\\s*```$/, '');\n    } else if (cleanJson.startsWith('```')) {\n      cleanJson = cleanJson.replace(/^```\\s*/, '').replace(/\\s*```$/, '');\n    }\n    \n    const parsed = JSON.parse(cleanJson);\n    const questions = parsed.questions || [];\n    \n    // Add batch info to each question\n    questions.forEach((q, idx) => {\n      allQuestions.push({\n        ...q,\n        batchNumber: batchInfo.batchNumber,\n        generatedIndex: idx + 1\n      });\n    });\n    \n    console.log(`Batch ${batchInfo.batchNumber}: Parsed ${questions.length} questions`);\n  } catch (error) {\n    console.error('Error parsing Gemini response:', error.message);\n    allQuestions.push({\n      id: 0,\n      question: 'ERROR: Failed to parse batch ' + batchInfo.batchNumber,\n      expected_answer: error.message,\n      category: 'error',\n      market: 'N/A',\n      product: 'N/A',\n      source_document: 'N/A',\n      difficulty: 'N/A',\n      batchNumber: batchInfo.batchNumber,\n      generatedIndex: 0\n    });\n  }\n}\n\nreturn allQuestions.map(q => ({ json: q }));"
+      },
+      "id": "node-parse-qa-response",
+      "name": "Parse QA Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "allQuestions",
+        "options": {}
+      },
+      "id": "node-aggregate-questions",
+      "name": "Aggregate All Questions",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Flatten and number all questions sequentially\nconst items = $input.all();\nconst allQuestions = items[0].json.allQuestions || [];\n\n// Renumber all questions sequentially\nconst numbered = allQuestions.map((q, idx) => ({\n  id: idx + 1,\n  question: q.question || '',\n  expected_answer: q.expected_answer || '',\n  category: q.category || 'unknown',\n  market: q.market || 'all',\n  product: q.product || 'general',\n  source_document: q.source_document || '',\n  difficulty: q.difficulty || 'medium',\n  // Leave these empty for QA execution\n  rag_response: '',\n  citations: '',\n  score: '',\n  criteria_met: '',\n  client_comments: ''\n}));\n\nconsole.log('Total questions generated: ' + numbered.length);\nreturn numbered.map(q => ({ json: q }));"
+      },
+      "id": "node-format-for-sheet",
+      "name": "Format for Sheet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Webhook Trigger').first().json.body.sheetId || '' }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Questions"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $json.id }}",
+            "Question": "={{ $json.question }}",
+            "Expected Answer": "={{ $json.expected_answer }}",
+            "Category": "={{ $json.category }}",
+            "Market": "={{ $json.market }}",
+            "Product": "={{ $json.product }}",
+            "Source Doc": "={{ $json.source_document }}",
+            "Difficulty": "={{ $json.difficulty }}",
+            "RAG Response": "",
+            "Citations": "",
+            "Score": "",
+            "Criteria Met": "",
+            "Client Comments": ""
+          }
+        },
+        "options": {}
+      },
+      "id": "node-write-to-sheet",
+      "name": "Write to Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3120,
+        320
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_DRIVE_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Summarize the QA generation results\nconst items = $('Format for Sheet').all();\nconst totalQuestions = items.length;\n\n// Count by category\nconst categoryCounts = {};\nconst difficultyCounts = {};\nconst marketCounts = {};\n\nitems.forEach(item => {\n  const cat = item.json.category || 'unknown';\n  const diff = item.json.difficulty || 'unknown';\n  const market = item.json.market || 'unknown';\n  \n  categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;\n  difficultyCounts[diff] = (difficultyCounts[diff] || 0) + 1;\n  marketCounts[market] = (marketCounts[market] || 0) + 1;\n});\n\nreturn [{\n  json: {\n    success: true,\n    totalQuestions: totalQuestions,\n    breakdown: {\n      byCategory: categoryCounts,\n      byDifficulty: difficultyCounts,\n      byMarket: marketCounts\n    },\n    message: 'Successfully generated ' + totalQuestions + ' QA questions and wrote to Google Sheet'\n  }\n}];"
+      },
+      "id": "node-summarize-results",
+      "name": "Summarize Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3360,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "node-respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        3600,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "title": "Opera KB QA Test Suite",
+        "sheetsUi": {
+          "sheetValues": [
+            {
+              "title": "Questions",
+              "headers": {
+                "row": {
+                  "values": [
+                    {
+                      "name": "ID"
+                    },
+                    {
+                      "name": "Question"
+                    },
+                    {
+                      "name": "Expected Answer"
+                    },
+                    {
+                      "name": "Category"
+                    },
+                    {
+                      "name": "Market"
+                    },
+                    {
+                      "name": "Product"
+                    },
+                    {
+                      "name": "Source Doc"
+                    },
+                    {
+                      "name": "Difficulty"
+                    },
+                    {
+                      "name": "RAG Response"
+                    },
+                    {
+                      "name": "Citations"
+                    },
+                    {
+                      "name": "Score"
+                    },
+                    {
+                      "name": "Criteria Met"
+                    },
+                    {
+                      "name": "Client Comments"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "options": {
+          "locale": "en_US"
+        }
+      },
+      "id": "node-create-sheet",
+      "name": "Create QA Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        480,
+        560
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_DRIVE_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qa/create-sheet",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-create-sheet-webhook",
+      "name": "Create Sheet Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        560
+      ],
+      "webhookId": "qa-create-sheet-webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"spreadsheetId\": $json.spreadsheetId, \"spreadsheetUrl\": $json.spreadsheetUrl, \"message\": \"QA Test Suite sheet created. Use this sheetId when calling POST /qa/generate with body: { sheetId: '\" + $json.spreadsheetId + \"' }\" } }}",
+        "options": {}
+      },
+      "id": "node-respond-sheet-created",
+      "name": "Respond Sheet Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Add delay between batches to avoid rate limiting\nconst delay = ms => new Promise(resolve => setTimeout(resolve, ms));\nawait delay(2000); // 2 second delay\nreturn $input.all();"
+      },
+      "id": "node-rate-limit",
+      "name": "Rate Limit Delay",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        320
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "List Gemini Store Docs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Gemini Store Docs": {
+      "main": [
+        [
+          {
+            "node": "Extract Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Documents": {
+      "main": [
+        [
+          {
+            "node": "Has Documents?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Documents?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond No Docs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Context": {
+      "main": [
+        [
+          {
+            "node": "Create Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Batches": {
+      "main": [
+        [
+          {
+            "node": "Process Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Batches": {
+      "main": [
+        [
+          {
+            "node": "Generate QA Questions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Aggregate All Questions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate QA Questions": {
+      "main": [
+        [
+          {
+            "node": "Parse QA Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse QA Response": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Delay": {
+      "main": [
+        [
+          {
+            "node": "Process Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate All Questions": {
+      "main": [
+        [
+          {
+            "node": "Format for Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format for Sheet": {
+      "main": [
+        [
+          {
+            "node": "Write to Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write to Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Summarize Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Results": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Sheet Webhook": {
+      "main": [
+        [
+          {
+            "node": "Create QA Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create QA Sheet": {
+      "main": [
+        [
+          {
+            "node": "Respond Sheet Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "50ec83d0-9d46-4005-b4ce-740ca09c53b7",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 0,
+  "tags": [],
+  "activeVersion": null
+}

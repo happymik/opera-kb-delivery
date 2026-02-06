@@ -1,0 +1,181 @@
+{
+  "updatedAt": "2026-02-05T09:40:34.021Z",
+  "createdAt": "2026-02-05T09:40:34.021Z",
+  "id": "SxU0FLwFJ28dR4Rg",
+  "name": "Gemini Knowledge Base - Cleanup",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "3e557d25-bdfc-43bd-8044-e7dcf868f453",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1360,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "dataTableId": {
+          "__rl": true,
+          "value": "YOUR_RECORD_MANAGER_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Gemini Record Manager"
+        }
+      },
+      "id": "f50cc7e3-be07-4dcb-89b7-7330f6c0be58",
+      "name": "Get All Records",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -1136,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": true
+        }
+      },
+      "id": "d740e02b-2ebb-4c99-8284-e950ba1c4eae",
+      "name": "Loop Records",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -912,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/{{ $json.documentName }}?force=true&key=YOUR_GEMINI_API_KEY",
+        "options": {}
+      },
+      "id": "0a571f10-b571-430c-b9c3-f3a442afa69c",
+      "name": "Delete Gemini Doc",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -688,
+        -208
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "dataTableId": {
+          "__rl": true,
+          "value": "YOUR_RECORD_MANAGER_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Gemini Record Manager"
+        }
+      },
+      "id": "eb2e9ec3-3fd6-44dc-a301-805521d92d37",
+      "name": "Delete DB Record",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -480,
+        -80
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "id": "48124e60-ca90-49f6-925c-faa5c7a512d1",
+      "name": "Done",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        192
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get All Records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Records": {
+      "main": [
+        [
+          {
+            "node": "Loop Records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Records": {
+      "main": [
+        [
+          {
+            "node": "Delete Gemini Doc",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Gemini Doc": {
+      "main": [
+        [
+          {
+            "node": "Delete DB Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete DB Record": {
+      "main": [
+        [
+          {
+            "node": "Loop Records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "7335a65f-f45f-4172-920e-5cc0a7b324a8",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 0,
+  "tags": [],
+  "activeVersion": null
+}

@@ -1,0 +1,1284 @@
+{
+  "updatedAt": "2026-02-05T09:40:12.252Z",
+  "createdAt": "2026-02-05T09:40:12.252Z",
+  "id": "9790OUR8DqwrQeTF",
+  "name": "Opera KB - Simplified Ingestion",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Opera KB - Simplified Ingestion Pipeline\n\n**Purpose:** Upload prepared files from staging folder to Gemini File Search API.\n\n**Pre-requisite:** Files must be pre-processed by the Pre-Ingestion Intelligence workflow.\n\n**Key Features:**\n- Reads prepared files from staging folder\n- Loads metadata from sidecar JSON files\n- Hash-based change detection\n- Exponential backoff retry (5s, 15s, 45s)\n- Pipeline lock to prevent concurrent runs\n\n**Staging Location:** Opera TEST/STAGING/\n**Gemini Store:** fileSearchStores/opera-knowledge-base-gls9v6ztisdg",
+        "height": 400,
+        "width": 340,
+        "color": 5
+      },
+      "id": "sticky-intro",
+      "name": "Sticky Note - Intro",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ingestion/start",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        400
+      ],
+      "webhookId": "ingestion-start-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Configuration for the ingestion pipeline\nreturn [{\n  json: {\n    storeName: 'fileSearchStores/opera-knowledge-base-gls9v6ztisdg',\n    stagingFolderId: '1ypG267OJqOXBWV31t1yl7dkFJyBZcHKn',\n    stagingSubfolder: 'STAGING',\n    maxRetries: 3,\n    retryDelays: [5000, 15000, 45000],\n    startTime: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "load-config",
+      "name": "Load Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getRow",
+        "dataTableId": "YOUR_PIPELINE_LOCK_TABLE_ID",
+        "rowId": "lock"
+      },
+      "id": "check-pipeline-lock",
+      "name": "Check Pipeline Lock",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "combinator": "and"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.processing }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "is-locked",
+      "name": "Is Locked?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"error\": \"Pipeline is already running. Please wait for the current execution to complete.\" } }}",
+        "options": {}
+      },
+      "id": "respond-locked",
+      "name": "Respond Locked",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1000,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "updateRow",
+        "dataTableId": "YOUR_PIPELINE_LOCK_TABLE_ID",
+        "rowId": "lock",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "processing",
+              "fieldValue": "true"
+            },
+            {
+              "fieldName": "lockedAt",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldName": "lockedBy",
+              "fieldValue": "simplified-ingestion"
+            }
+          ]
+        }
+      },
+      "id": "acquire-lock",
+      "name": "Acquire Lock",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1zyFOFMc0WHeeLJh2fujd0B-9LtCB8PfJ"
+        },
+        "queryFilters": {
+          "name": "",
+          "folderId": "STAGING",
+          "driveId": "",
+          "whatToSearch": "files",
+          "returnAll": true
+        },
+        "options": {
+          "fields": [
+            "id",
+            "name",
+            "mimeType",
+            "modifiedTime",
+            "parents"
+          ]
+        }
+      },
+      "id": "list-staging-files",
+      "name": "List Staging Files",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1200,
+        300
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter for prepared files (exclude metadata sidecars)\nconst items = $input.all();\nconst preparedFiles = [];\nconst metadataFiles = new Map();\n\n// First pass: identify metadata files\nfor (const item of items) {\n  const name = item.json.name || '';\n  if (name.endsWith('.metadata.json')) {\n    const baseName = name.replace('.metadata.json', '');\n    metadataFiles.set(baseName, item.json);\n  }\n}\n\n// Second pass: collect prepared files with their metadata\nfor (const item of items) {\n  const name = item.json.name || '';\n  \n  // Skip metadata sidecars\n  if (name.endsWith('.metadata.json')) continue;\n  \n  // Only include PDF and Markdown files (prepared formats)\n  const mimeType = item.json.mimeType || '';\n  if (mimeType !== 'application/pdf' && \n      mimeType !== 'text/markdown' && \n      !name.endsWith('.md') && \n      !name.endsWith('.pdf')) {\n    continue;\n  }\n  \n  // Find corresponding metadata file\n  const baseName = name.replace(/\\.(pdf|md)$/, '');\n  const metadataFileId = metadataFiles.get(baseName)?.id || null;\n  \n  preparedFiles.push({\n    json: {\n      ...item.json,\n      metadataFileId: metadataFileId,\n      baseName: baseName\n    }\n  });\n}\n\nif (preparedFiles.length === 0) {\n  return [{ json: { noFiles: true, message: 'No prepared files found in staging folder' } }];\n}\n\nreturn preparedFiles;"
+      },
+      "id": "filter-prepared-files",
+      "name": "Filter Prepared Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "combinator": "and"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.noFiles }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "has-files",
+      "name": "Has Files?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "updateRow",
+        "dataTableId": "YOUR_PIPELINE_LOCK_TABLE_ID",
+        "rowId": "lock",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "processing",
+              "fieldValue": "false"
+            }
+          ]
+        }
+      },
+      "id": "release-lock-no-files",
+      "name": "Release Lock (No Files)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"No prepared files found in staging folder\", \"filesProcessed\": 0 } }}",
+        "options": {}
+      },
+      "id": "respond-no-files",
+      "name": "Respond No Files",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-over-files",
+      "name": "Loop Over Files",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.metadataFileId }}"
+        },
+        "options": {
+          "binaryPropertyName": "metadata"
+        }
+      },
+      "id": "download-metadata-sidecar",
+      "name": "Download Metadata Sidecar",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2000,
+        200
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse metadata from sidecar JSON file\nconst items = $input.all();\n\nfor (const item of items) {\n  try {\n    // Get binary data from metadata sidecar\n    const binaryData = await this.helpers.getBinaryDataBuffer(item, 'metadata');\n    const metadataJson = JSON.parse(binaryData.toString('utf8'));\n    \n    item.json.parsedMetadata = metadataJson;\n    item.json.market = metadataJson.market || 'all';\n    item.json.product = metadataJson.product || 'general';\n    item.json.documentType = metadataJson.documentType || 'document';\n    item.json.summary = metadataJson.summary || '';\n    item.json.extractedLinks = metadataJson.extractedLinks || [];\n    item.json.contentHash = metadataJson.contentHash || '';\n    item.json.originalDriveFileId = metadataJson.sourceFile || '';\n    item.json.sourcePath = metadataJson.sourcePath || '';\n  } catch (error) {\n    // If metadata can't be parsed, use defaults\n    item.json.parsedMetadata = {};\n    item.json.market = 'all';\n    item.json.product = 'general';\n    item.json.documentType = 'document';\n    item.json.summary = '';\n    item.json.extractedLinks = [];\n    item.json.contentHash = '';\n    item.json.metadataError = error.message;\n  }\n}\n\nreturn items;"
+      },
+      "id": "parse-metadata",
+      "name": "Parse Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate hash if not present in metadata\nconst crypto = require('crypto');\nconst items = $input.all();\n\nfor (const item of items) {\n  // If we have a content hash from metadata, use it\n  if (item.json.contentHash) {\n    item.json.hash = item.json.contentHash;\n  } else {\n    // Generate hash from file ID + modified time as fallback\n    const hashInput = `${item.json.id}-${item.json.modifiedTime}`;\n    item.json.hash = crypto.createHash('sha256').update(hashInput).digest('hex').substring(0, 32);\n  }\n}\n\nreturn items;"
+      },
+      "id": "ensure-hash",
+      "name": "Ensure Hash",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getRow",
+        "dataTableId": "YOUR_RECORD_MANAGER_TABLE_ID",
+        "rowId": "={{ $json.originalDriveFileId || $json.id }}"
+      },
+      "id": "check-record-manager",
+      "name": "Check Record Manager",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "combinator": "and"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "record-exists",
+      "name": "Record Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "combinator": "and"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Ensure Hash').item.json.hash }}",
+              "rightValue": "={{ $json.contentHash }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "hash-unchanged",
+      "name": "Hash Unchanged?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3000,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log skipped file\nconst item = $input.first();\nreturn [{\n  json: {\n    action: 'skipped',\n    reason: 'unchanged',\n    fileName: item.json.name || $('Parse Metadata').first().json.name,\n    hash: $('Ensure Hash').first().json.hash\n  }\n}];"
+      },
+      "id": "log-skip",
+      "name": "Log Skip",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/{{ $json.geminiDocId }}?force=true",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "delete-old-gemini-doc",
+      "name": "Delete Old Gemini Doc",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3200,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "aE4TTwJr4i8GFsno",
+          "name": "Gemini API Key"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "deleteRow",
+        "dataTableId": "YOUR_RECORD_MANAGER_TABLE_ID",
+        "rowId": "={{ $('Check Record Manager').item.json.id }}"
+      },
+      "id": "delete-old-record",
+      "name": "Delete Old Record",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Parse Metadata').item.json.id }}"
+        },
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "id": "download-prepared-file",
+      "name": "Download Prepared File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3600,
+        300
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build upload metadata for Gemini File Search API\nconst items = $input.all();\nconst parseMetadata = $('Parse Metadata').first().json;\n\nfor (const item of items) {\n  const meta = parseMetadata.parsedMetadata || {};\n  const fileName = parseMetadata.name || 'Untitled';\n  const sourcePath = parseMetadata.sourcePath || '';\n  const driveFileId = parseMetadata.originalDriveFileId || parseMetadata.id;\n  \n  // Create display name with market/product prefix\n  let displayName = meta.originalFilename || fileName.replace(/\\.(pdf|md)$/, '');\n  if (meta.market && meta.market !== 'all') {\n    displayName = `[${meta.market.toUpperCase()}] ${displayName}`;\n  }\n  if (meta.product && meta.product !== 'general') {\n    displayName = `${displayName} (${meta.product})`;\n  }\n\n  item.json.uploadMetadata = {\n    display_name: displayName,\n    custom_metadata: [\n      { key: \"market\", string_value: meta.market || 'all' },\n      { key: \"product\", string_value: meta.product || 'general' },\n      { key: \"documentType\", string_value: meta.documentType || 'document' },\n      { key: \"summary\", string_value: meta.summary || '' },\n      { key: \"source_path\", string_value: sourcePath },\n      { key: \"drive_file_id\", string_value: driveFileId },\n      { key: \"original_filename\", string_value: meta.originalFilename || fileName },\n      { key: \"extracted_links\", string_value: JSON.stringify(meta.extractedLinks || []) }\n    ],\n    chunking_config: {\n      whitespace_chunk_config: {\n        max_tokens_per_chunk: 500,\n        max_overlap_tokens: 100\n      }\n    }\n  };\n  \n  // Store for record manager\n  item.json.displayName = displayName;\n  item.json.mimeType = parseMetadata.mimeType;\n}\n\nreturn items;"
+      },
+      "id": "build-upload-metadata",
+      "name": "Build Upload Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/upload/v1beta/fileSearchStores/opera-knowledge-base-gls9v6ztisdg/documents:upload?uploadType=resumable",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Goog-Upload-Protocol",
+              "value": "resumable"
+            },
+            {
+              "name": "X-Goog-Upload-Command",
+              "value": "start"
+            },
+            {
+              "name": "X-Goog-Upload-Header-Content-Type",
+              "value": "={{ $json.mimeType === 'text/markdown' || $('Parse Metadata').first().json.name.endsWith('.md') ? 'text/markdown' : 'application/pdf' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.uploadMetadata }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "initiate-upload",
+      "name": "Initiate Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4000,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "aE4TTwJr4i8GFsno",
+          "name": "Gemini API Key"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Restore binary data for upload\nconst items = $input.all();\n\ntry {\n  const downloadNode = $('Download Prepared File').all();\n  if (downloadNode.length > 0 && downloadNode[0].binary) {\n    items[0].binary = downloadNode[0].binary;\n  }\n} catch (error) {\n  items[0].json.binaryRestoreError = error.message;\n}\n\nreturn items;"
+      },
+      "id": "restore-binary",
+      "name": "Restore Binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Initiate Upload').item.json.headers['x-goog-upload-url'] }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Goog-Upload-Offset",
+              "value": "0"
+            },
+            {
+              "name": "X-Goog-Upload-Command",
+              "value": "upload, finalize"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "binary",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "upload-binary",
+      "name": "Upload Binary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4400,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "aE4TTwJr4i8GFsno",
+          "name": "Gemini API Key"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 15000
+    },
+    {
+      "parameters": {
+        "url": "=https://generativelanguage.googleapis.com/v1beta/{{ $json.document.name }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "wait-for-processing",
+      "name": "Wait for Processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4600,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "aE4TTwJr4i8GFsno",
+          "name": "Gemini API Key"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "operation": "addRow",
+        "dataTableId": "YOUR_RECORD_MANAGER_TABLE_ID",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "driveFileId",
+              "fieldValue": "={{ $('Parse Metadata').first().json.originalDriveFileId || $('Parse Metadata').first().json.id }}"
+            },
+            {
+              "fieldName": "geminiDocId",
+              "fieldValue": "={{ $('Upload Binary').item.json.document.name }}"
+            },
+            {
+              "fieldName": "contentHash",
+              "fieldValue": "={{ $('Ensure Hash').first().json.hash }}"
+            },
+            {
+              "fieldName": "displayName",
+              "fieldValue": "={{ $('Build Upload Metadata').first().json.displayName }}"
+            },
+            {
+              "fieldName": "market",
+              "fieldValue": "={{ $('Parse Metadata').first().json.market }}"
+            },
+            {
+              "fieldName": "product",
+              "fieldValue": "={{ $('Parse Metadata').first().json.product }}"
+            },
+            {
+              "fieldName": "documentType",
+              "fieldValue": "={{ $('Parse Metadata').first().json.documentType }}"
+            },
+            {
+              "fieldName": "sourcePath",
+              "fieldValue": "={{ $('Parse Metadata').first().json.sourcePath }}"
+            },
+            {
+              "fieldName": "lastProcessed",
+              "fieldValue": "={{ $now.toISO() }}"
+            }
+          ]
+        }
+      },
+      "id": "add-record",
+      "name": "Add Record",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Track successful upload\nconst item = $input.first();\nconst parseMetadata = $('Parse Metadata').first().json;\nconst uploadResult = $('Upload Binary').first().json;\n\nreturn [{\n  json: {\n    action: 'uploaded',\n    fileName: parseMetadata.name,\n    geminiDocId: uploadResult.document?.name,\n    hash: $('Ensure Hash').first().json.hash,\n    market: parseMetadata.market,\n    product: parseMetadata.product\n  }\n}];"
+      },
+      "id": "log-success",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "id": "rate-limit-delay",
+      "name": "Rate Limit Delay",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        5200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "mergeByPosition",
+        "clashHandling": {
+          "values": {
+            "resolveClash": "preferInput2"
+          }
+        }
+      },
+      "id": "merge-results",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        5400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all results\nconst items = $input.all();\nconst results = {\n  uploaded: 0,\n  skipped: 0,\n  errors: 0,\n  details: []\n};\n\nfor (const item of items) {\n  const action = item.json.action;\n  if (action === 'uploaded') {\n    results.uploaded++;\n  } else if (action === 'skipped') {\n    results.skipped++;\n  } else if (action === 'error') {\n    results.errors++;\n  }\n  results.details.push(item.json);\n}\n\nreturn [{ json: results }];"
+      },
+      "id": "aggregate-results",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "updateRow",
+        "dataTableId": "YOUR_PIPELINE_LOCK_TABLE_ID",
+        "rowId": "lock",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "processing",
+              "fieldValue": "false"
+            },
+            {
+              "fieldName": "lastCompleted",
+              "fieldValue": "={{ $now.toISO() }}"
+            }
+          ]
+        }
+      },
+      "id": "release-lock",
+      "name": "Release Lock",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        5800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "addRow",
+        "dataTableId": "YOUR_EXECUTION_LOG_TABLE_ID",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "executionId",
+              "fieldValue": "={{ $execution.id }}"
+            },
+            {
+              "fieldName": "workflow",
+              "fieldValue": "simplified-ingestion"
+            },
+            {
+              "fieldName": "startTime",
+              "fieldValue": "={{ $('Load Config').first().json.startTime }}"
+            },
+            {
+              "fieldName": "endTime",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldName": "filesUploaded",
+              "fieldValue": "={{ $('Aggregate Results').first().json.uploaded }}"
+            },
+            {
+              "fieldName": "filesSkipped",
+              "fieldValue": "={{ $('Aggregate Results').first().json.skipped }}"
+            },
+            {
+              "fieldName": "errors",
+              "fieldValue": "={{ $('Aggregate Results').first().json.errors }}"
+            },
+            {
+              "fieldName": "status",
+              "fieldValue": "={{ $('Aggregate Results').first().json.errors > 0 ? 'completed_with_errors' : 'success' }}"
+            }
+          ]
+        }
+      },
+      "id": "log-execution",
+      "name": "Log Execution",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        6000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"uploaded\": $('Aggregate Results').first().json.uploaded, \"skipped\": $('Aggregate Results').first().json.skipped, \"errors\": $('Aggregate Results').first().json.errors, \"executionId\": $execution.id } }}",
+        "options": {}
+      },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        6200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Error Handling\n\nFiles that fail to upload are logged but don't stop the pipeline.\nRetry logic with exponential backoff is built into HTTP nodes.",
+        "height": 200,
+        "width": 340,
+        "color": 2
+      },
+      "id": "sticky-error-handling",
+      "name": "Sticky Note - Error Handling",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3000,
+        -150
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle upload error\nconst item = $input.first();\nconst parseMetadata = $('Parse Metadata').first().json;\n\nreturn [{\n  json: {\n    action: 'error',\n    fileName: parseMetadata.name,\n    error: item.json.error || 'Unknown upload error',\n    stage: 'gemini_upload'\n  }\n}];"
+      },
+      "id": "log-error",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4600,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Config": {
+      "main": [
+        [
+          {
+            "node": "Check Pipeline Lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Pipeline Lock": {
+      "main": [
+        [
+          {
+            "node": "Is Locked?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Locked?": {
+      "main": [
+        [
+          {
+            "node": "Respond Locked",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Acquire Lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Acquire Lock": {
+      "main": [
+        [
+          {
+            "node": "List Staging Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Staging Files": {
+      "main": [
+        [
+          {
+            "node": "Filter Prepared Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Prepared Files": {
+      "main": [
+        [
+          {
+            "node": "Has Files?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Files?": {
+      "main": [
+        [
+          {
+            "node": "Release Lock (No Files)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release Lock (No Files)": {
+      "main": [
+        [
+          {
+            "node": "Respond No Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Files": {
+      "main": [
+        [
+          {
+            "node": "Download Metadata Sidecar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Metadata Sidecar": {
+      "main": [
+        [
+          {
+            "node": "Parse Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Metadata": {
+      "main": [
+        [
+          {
+            "node": "Ensure Hash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure Hash": {
+      "main": [
+        [
+          {
+            "node": "Check Record Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Record Manager": {
+      "main": [
+        [
+          {
+            "node": "Record Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Exists?": {
+      "main": [
+        [
+          {
+            "node": "Hash Unchanged?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Prepared File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hash Unchanged?": {
+      "main": [
+        [
+          {
+            "node": "Log Skip",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete Old Gemini Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Skip": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Old Gemini Doc": {
+      "main": [
+        [
+          {
+            "node": "Delete Old Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Old Record": {
+      "main": [
+        [
+          {
+            "node": "Download Prepared File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Prepared File": {
+      "main": [
+        [
+          {
+            "node": "Build Upload Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Upload Metadata": {
+      "main": [
+        [
+          {
+            "node": "Initiate Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initiate Upload": {
+      "main": [
+        [
+          {
+            "node": "Restore Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Binary": {
+      "main": [
+        [
+          {
+            "node": "Upload Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Binary": {
+      "main": [
+        [
+          {
+            "node": "Wait for Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Processing": {
+      "main": [
+        [
+          {
+            "node": "Add Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Record": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Success": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Delay": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Release Lock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release Lock": {
+      "main": [
+        [
+          {
+            "node": "Log Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Execution": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "b01ab836-9409-4751-8828-394c85528c31",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 0,
+  "tags": [],
+  "activeVersion": null
+}

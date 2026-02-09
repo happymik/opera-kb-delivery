@@ -1,6 +1,6 @@
 import { ChatResponse, Market, Product } from '../types';
 
-const API_BASE = 'https://n8n.lomeai.com/webhook';
+const API_BASE = 'http://n8n-lgwooocw48ok4ow4cwc0wg00.20.71.42.161.sslip.io/webhook';
 
 export async function sendChatMessage(
   question: string,

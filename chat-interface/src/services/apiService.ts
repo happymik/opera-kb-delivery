@@ -1,6 +1,6 @@
 import { ChatResponse, Market, Product } from '../types';
 
-const API_BASE = 'http://n8n-lgwooocw48ok4ow4cwc0wg00.20.71.42.161.sslip.io/webhook';
+const API_BASE = 'https://n8n.lomeai.com/webhook';
 
 export async function sendChatMessage(
   question: string,
@@ -15,7 +15,7 @@ export async function sendChatMessage(
       requestBody.sessionId = sessionId;
     }
 
-    const response = await fetch(`${API_BASE}/kb-agent`, {
+    const response = await fetch(`${API_BASE}/m1-kb-chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

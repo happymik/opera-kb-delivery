@@ -36,7 +36,7 @@ export async function sendChatMessage(
       requestBody.sessionId = sessionId;
     }
 
-    const response = await fetchWithRetry(`${API_BASE}/m1-kb-chat`, {
+    const response = await fetchWithRetry(`${API_BASE}/opera-kb-chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

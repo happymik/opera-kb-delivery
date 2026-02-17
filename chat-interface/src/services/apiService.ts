@@ -1,6 +1,6 @@
 import { ChatResponse, Market, Product } from '../types';
 
-const API_BASE = 'https://n8n.lomeai.com/webhook';
+const API_BASE = import.meta.env.VITE_N8N_WEBHOOK_URL || 'https://n8n.lomeai.com/webhook';
 const MAX_RETRIES = 2;
 
 async function fetchWithRetry(url: string, options: RequestInit, retries: number): Promise<Response> {
